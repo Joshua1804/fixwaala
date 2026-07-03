@@ -1,0 +1,11 @@
+Homebrew
+Git
+Flutter SDK
+Dart SDK — included with Flutter
+Android Studio
+Android SDK
+Google Chrome
+Node.js 22 + npm
+Firebase CLI
+FlutterFire CLI
+Visual Studio Code
