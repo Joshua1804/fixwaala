@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "353094117552",
+    "project_id": "fixwaala",
+    "storage_bucket": "fixwaala.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:353094117552:android:68566ce04ae08b5143f375",
+        "android_client_info": {
+          "package_name": "com.fixwaala.fixwaala"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwqEp9k5eiMV6alq4vI9IZZjN7hq09hBA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
