@@ -22,7 +22,10 @@ class GeoBroadcastService {
     return const [];
   }
 
-  Future<void> notifyProviders(List<ProviderCandidate> providers, String ticketId) async {
+  Future<void> notifyProviders(
+    List<ProviderCandidate> providers,
+    String ticketId,
+  ) async {
     // TODO: send FCM to each provider with ticket details (no exact address).
   }
 

@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../core/constants/app_constants.dart';
 import '../core/models/user_model.dart';
 import '../core/routes/route_names.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../features/auth/services/auth_service.dart';
+import '../features/provider_dashboard/models/analytics_model.dart';
+import '../features/provider_dashboard/screens/provider_dashboard_screen.dart';
+import '../features/provider_dashboard/services/analytics_service.dart';
+import '../features/service_lifecycle/models/job_model.dart';
+import '../features/service_lifecycle/screens/active_jobs_screen.dart';
+import '../features/service_lifecycle/services/job_service.dart';
 import '../core/widgets/status_badge.dart';
 
 /// Provider home screen with bottom navigation, gradient header with
@@ -31,10 +38,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _fade = CurvedAnimation(
-      parent: _entranceController,
-      curve: Curves.easeOut,
-    );
+    _fade = CurvedAnimation(parent: _entranceController, curve: Curves.easeOut);
     _entranceController.forward();
   }
 
@@ -55,8 +59,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             online: _online,
             onToggleOnline: (v) => setState(() => _online = v),
           ),
-          _JobsTab(),
-          _DashboardTab(),
+          const ActiveJobsScreen(),
+          const ProviderDashboardScreen(),
           _ProviderProfileTab(),
         ],
       ),
@@ -111,8 +115,26 @@ class _ProviderHomeTab extends StatelessWidget {
     required this.onToggleOnline,
   });
 
+  // NOTE: uses a shared demo provider id — see AppConstants.demoProviderId.
+  String get _providerId => AppConstants.demoProviderId;
+
   @override
   Widget build(BuildContext context) {
+    return StreamBuilder<Job>(
+      stream: JobService.instance.watchAllChanges(),
+      builder: (context, _) {
+        return FutureBuilder<ProviderAnalytics>(
+          future: AnalyticsService.instance.load(_providerId),
+          builder: (context, snapshot) {
+            final analytics = snapshot.data ?? ProviderAnalytics.empty;
+            return _buildScrollView(context, analytics);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildScrollView(BuildContext context, ProviderAnalytics analytics) {
     return CustomScrollView(
       slivers: [
         // ── Gradient AppBar with earnings ──────────────────────
@@ -160,9 +182,8 @@ class _ProviderHomeTab extends StatelessWidget {
                                   children: [
                                     Text(
                                       'Hi $name! 👋',
-                                      style: AppTextStyles.headlineSmall.copyWith(
-                                        color: Colors.white,
-                                      ),
+                                      style: AppTextStyles.headlineSmall
+                                          .copyWith(color: Colors.white),
                                     ),
                                     const SizedBox(height: 2),
                                     Row(
@@ -188,18 +209,25 @@ class _ProviderHomeTab extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       // Earnings row
-                      Row(
-                        children: [
-                          _EarningsChip(
-                            label: 'Today',
-                            amount: '₹1,250',
-                          ),
-                          const SizedBox(width: 12),
-                          _EarningsChip(
-                            label: 'This week',
-                            amount: '₹8,400',
-                          ),
-                        ],
+                      GestureDetector(
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pushNamed(RouteNames.providerEarnings),
+                        child: Row(
+                          children: [
+                            _EarningsChip(
+                              label: 'This month',
+                              amount:
+                                  '₹${analytics.earningsThisMonth.toStringAsFixed(0)}',
+                            ),
+                            const SizedBox(width: 12),
+                            _EarningsChip(
+                              label: 'All time',
+                              amount:
+                                  '₹${analytics.earningsTotal.toStringAsFixed(0)}',
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -230,31 +258,50 @@ class _ProviderHomeTab extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: Row(
-                children: const [
+                children: [
                   Expanded(
-                    child: _QuickStatCard(
-                      icon: Icons.star_rounded,
-                      value: '4.8',
-                      label: 'Rating',
-                      color: AppColors.accent,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pushNamed(RouteNames.providerTrustScore),
+                      child: _QuickStatCard(
+                        icon: Icons.star_rounded,
+                        value: analytics.ratingCount == 0
+                            ? '—'
+                            : analytics.ratingAverage.toStringAsFixed(1),
+                        label: 'Rating',
+                        color: AppColors.accent,
+                      ),
                     ),
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: _QuickStatCard(
-                      icon: Icons.check_circle_rounded,
-                      value: '132',
-                      label: 'Jobs done',
-                      color: AppColors.success,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pushNamed(RouteNames.providerActiveJobs),
+                      child: _QuickStatCard(
+                        icon: Icons.check_circle_rounded,
+                        value: '${analytics.completedJobs}',
+                        label: 'Jobs done',
+                        color: AppColors.success,
+                      ),
                     ),
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: _QuickStatCard(
-                      icon: Icons.speed_rounded,
-                      value: '95%',
-                      label: 'Completion',
-                      color: AppColors.info,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pushNamed(RouteNames.providerPerformance),
+                      child: _QuickStatCard(
+                        icon: Icons.speed_rounded,
+                        value: analytics.hasHistory
+                            ? '${(analytics.completionRate * 100).toStringAsFixed(0)}%'
+                            : '—',
+                        label: 'Completion',
+                        color: AppColors.info,
+                      ),
                     ),
                   ),
                 ],
@@ -269,10 +316,7 @@ class _ProviderHomeTab extends StatelessWidget {
             opacity: fadeAnimation,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-              child: Text(
-                'Quick Actions',
-                style: AppTextStyles.titleLarge,
-              ),
+              child: Text('Quick Actions', style: AppTextStyles.titleLarge),
             ),
           ),
         ),
@@ -289,17 +333,29 @@ class _ProviderHomeTab extends StatelessWidget {
                     title: 'Simulate incoming opportunity',
                     subtitle: 'Test the job matching flow',
                     color: AppColors.accent,
-                    onTap: () => Navigator.of(context)
-                        .pushNamed(RouteNames.providerOpportunity),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pushNamed(RouteNames.providerOpportunity),
                   ),
                   const SizedBox(height: 10),
                   _ActionCard(
-                    icon: Icons.verified_user_rounded,
-                    title: 'Verification status',
-                    subtitle: 'Check your identity verification',
+                    icon: Icons.account_balance_wallet_rounded,
+                    title: 'Earnings summary',
+                    subtitle: 'Breakdown of paid jobs',
                     color: AppColors.success,
-                    onTap: () => Navigator.of(context)
-                        .pushNamed(RouteNames.verificationStatus),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pushNamed(RouteNames.providerEarnings),
+                  ),
+                  const SizedBox(height: 10),
+                  _ActionCard(
+                    icon: Icons.verified_rounded,
+                    title: 'Trust score',
+                    subtitle: 'How customers see your reliability',
+                    color: AppColors.primary,
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pushNamed(RouteNames.providerTrustScore),
                   ),
                   const SizedBox(height: 10),
                   _ActionCard(
@@ -307,8 +363,19 @@ class _ProviderHomeTab extends StatelessWidget {
                     title: 'Performance analytics',
                     subtitle: 'View your detailed stats',
                     color: AppColors.info,
-                    onTap: () => Navigator.of(context)
-                        .pushNamed(RouteNames.providerPerformance),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pushNamed(RouteNames.providerPerformance),
+                  ),
+                  const SizedBox(height: 10),
+                  _ActionCard(
+                    icon: Icons.verified_user_rounded,
+                    title: 'Verification status',
+                    subtitle: 'Check your identity verification',
+                    color: AppColors.textSecondary,
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pushNamed(RouteNames.verificationStatus),
                   ),
                 ],
               ),
@@ -317,9 +384,7 @@ class _ProviderHomeTab extends StatelessWidget {
         ),
 
         // Bottom padding
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 24),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
   }
@@ -339,9 +404,7 @@ class _EarningsChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,10 +433,7 @@ class _OnlineToggleCard extends StatelessWidget {
   final bool online;
   final ValueChanged<bool> onChanged;
 
-  const _OnlineToggleCard({
-    required this.online,
-    required this.onChanged,
-  });
+  const _OnlineToggleCard({required this.online, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -433,10 +493,7 @@ class _OnlineToggleCard extends StatelessWidget {
               ],
             ),
           ),
-          Switch(
-            value: online,
-            onChanged: onChanged,
-          ),
+          Switch(value: online, onChanged: onChanged),
         ],
       ),
     );
@@ -464,9 +521,7 @@ class _QuickStatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: color.withValues(alpha: 0.12),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.12)),
       ),
       child: Column(
         children: [
@@ -519,9 +574,7 @@ class _ActionCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: Theme.of(context).cardTheme.color,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: AppColors.divider.withValues(alpha: 0.5),
-            ),
+            border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
           ),
           child: Row(
             children: [
@@ -550,70 +603,13 @@ class _ActionCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textHint, size: 20),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textHint,
+                size: 20,
+              ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Placeholder tabs ────────────────────────────────────────────────
-class _JobsTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('My Jobs')),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.work_off_rounded,
-                size: 64,
-                color: AppColors.textHint.withValues(alpha: 0.3)),
-            const SizedBox(height: 16),
-            Text(
-              'No active jobs',
-              style: AppTextStyles.titleMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Go online to start receiving jobs',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textHint,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DashboardTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.bar_chart_rounded,
-                size: 64,
-                color: AppColors.textHint.withValues(alpha: 0.3)),
-            const SizedBox(height: 16),
-            Text(
-              'Analytics coming soon',
-              style: AppTextStyles.titleMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -646,8 +642,11 @@ class _ProviderProfileTab extends StatelessWidget {
                         color: AppColors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.person_rounded,
-                          size: 36, color: AppColors.primary),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        size: 36,
+                        color: AppColors.primary,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(name, style: AppTextStyles.headlineSmall),
@@ -658,10 +657,12 @@ class _ProviderProfileTab extends StatelessWidget {
                     const SizedBox(height: 4),
                     StatusBadge.verified(),
                     const SizedBox(height: 4),
-                    Text('+91 $phone',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        )),
+                    Text(
+                      '+91 $phone',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -669,20 +670,35 @@ class _ProviderProfileTab extends StatelessWidget {
               _ProviderProfileTile(
                 icon: Icons.verified_user_rounded,
                 label: 'Verification',
-                onTap: () => Navigator.of(context)
-                    .pushNamed(RouteNames.verificationStatus),
+                onTap: () => Navigator.of(
+                  context,
+                ).pushNamed(RouteNames.verificationStatus),
+              ),
+              _ProviderProfileTile(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'Earnings',
+                onTap: () => Navigator.of(
+                  context,
+                ).pushNamed(RouteNames.providerEarnings),
               ),
               _ProviderProfileTile(
                 icon: Icons.bar_chart_rounded,
                 label: 'Performance',
-                onTap: () => Navigator.of(context)
-                    .pushNamed(RouteNames.providerPerformance),
+                onTap: () => Navigator.of(
+                  context,
+                ).pushNamed(RouteNames.providerPerformance),
+              ),
+              _ProviderProfileTile(
+                icon: Icons.verified_rounded,
+                label: 'Trust score',
+                onTap: () => Navigator.of(
+                  context,
+                ).pushNamed(RouteNames.providerTrustScore),
               ),
               _ProviderProfileTile(
                 icon: Icons.report_outlined,
                 label: 'Report an Issue',
-                onTap: () =>
-                    Navigator.of(context).pushNamed(RouteNames.report),
+                onTap: () => Navigator.of(context).pushNamed(RouteNames.report),
               ),
               _ProviderProfileTile(
                 icon: Icons.help_outline_rounded,
@@ -694,8 +710,9 @@ class _ProviderProfileTab extends StatelessWidget {
                 icon: Icons.logout_rounded,
                 label: 'Sign Out',
                 isDestructive: true,
-                onTap: () => Navigator.of(context)
-                    .pushReplacementNamed(RouteNames.roleSelection),
+                onTap: () => Navigator.of(
+                  context,
+                ).pushReplacementNamed(RouteNames.roleSelection),
               ),
             ],
           );
@@ -734,12 +751,12 @@ class _ProviderProfileTile extends StatelessWidget {
         ),
         child: Icon(icon, color: color, size: 20),
       ),
-      title: Text(
-        label,
-        style: AppTextStyles.bodyLarge.copyWith(color: color),
+      title: Text(label, style: AppTextStyles.bodyLarge.copyWith(color: color)),
+      trailing: Icon(
+        Icons.chevron_right_rounded,
+        color: AppColors.textHint,
+        size: 20,
       ),
-      trailing: Icon(Icons.chevron_right_rounded,
-          color: AppColors.textHint, size: 20),
     );
   }
 }

@@ -1,61 +1,87 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/models/user_model.dart';
 import '../../../core/widgets/custom_button.dart';
-import '../models/report_model.dart';
+import '../../auth/services/auth_service.dart';
 import '../services/report_service.dart';
 
-class SosScreen extends StatelessWidget {
+/// SOS Screen (Module 11) — emergency alert during an active job.
+class SosScreen extends StatefulWidget {
   const SosScreen({super.key});
 
-  Future<void> _raise(BuildContext context) async {
-    await ReportService.instance.raiseSos(
-      SafetyAlert(
-        id: 'alert-${DateTime.now().microsecondsSinceEpoch}',
-        userId: 'current-user-id',
-        ticketId: 'ticket-id-stub',
-        raisedAt: DateTime.now(),
-      ),
-    );
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('SOS raised. Admin has been alerted.')),
-    );
-    Navigator.of(context).pop();
+  @override
+  State<SosScreen> createState() => _SosScreenState();
+}
+
+class _SosScreenState extends State<SosScreen> {
+  bool _raising = false;
+  bool _raised = false;
+
+  Future<void> _raise(AppUser me, String? jobId) async {
+    setState(() => _raising = true);
+    await ReportService.instance.raiseSos(userId: me.id, jobId: jobId);
+    if (!mounted) return;
+    setState(() {
+      _raising = false;
+      _raised = true;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final jobId = ModalRoute.of(context)?.settings.arguments as String?;
     return Scaffold(
       appBar: AppBar(title: const Text('Emergency (SOS)')),
       backgroundColor: Colors.red.shade50,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Icon(Icons.warning, size: 72, color: Colors.red),
-            const SizedBox(height: 16),
-            Text('Do you need immediate help?',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            const Text(
-              'Raising SOS notifies the Fixwaala admin team and flags this ticket for review.',
-              textAlign: TextAlign.center,
+      body: FutureBuilder<AppUser?>(
+        future: AuthService.instance.currentUser(),
+        builder: (context, snapshot) {
+          final me = snapshot.data;
+          return Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Icon(
+                  _raised ? Icons.check_circle : Icons.warning,
+                  size: 72,
+                  color: _raised ? Colors.green : Colors.red,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _raised ? 'SOS raised' : 'Do you need immediate help?',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _raised
+                      ? 'Our admin team has been alerted and will follow up immediately.'
+                      : 'Raising SOS notifies the Fixwaala admin team and flags this job for review.',
+                  textAlign: TextAlign.center,
+                ),
+                const Spacer(),
+                if (!_raised) ...[
+                  PrimaryButton(
+                    label: 'Raise SOS',
+                    loading: _raising,
+                    icon: Icons.emergency,
+                    onPressed: me == null ? null : () => _raise(me, jobId),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ] else
+                  PrimaryButton(
+                    label: 'Done',
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+              ],
             ),
-            const Spacer(),
-            PrimaryButton(
-              label: 'Raise SOS',
-              onPressed: () => _raise(context),
-              icon: Icons.emergency,
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

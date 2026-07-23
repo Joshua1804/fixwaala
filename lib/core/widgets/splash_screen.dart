@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../features/auth/services/auth_service.dart';
 import '../constants/app_constants.dart';
 import '../constants/app_strings.dart';
-import '../routes/route_names.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -70,10 +70,13 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _bootstrap() async {
-    // TODO: read cached session — route to correct home based on role & status.
-    await Future.delayed(const Duration(seconds: 2));
+    final results = await Future.wait([
+      AuthService.instance.resolveInitialRoute(),
+      Future.delayed(const Duration(seconds: 2)),
+    ]);
     if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed(RouteNames.roleSelection);
+    final destination = results[0] as String;
+    Navigator.of(context).pushReplacementNamed(destination);
   }
 
   @override

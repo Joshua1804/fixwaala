@@ -17,7 +17,9 @@ class FirebaseService {
     try {
       final options = DefaultFirebaseOptions.currentPlatform;
       if (options.apiKey == 'placeholder-apiKey') {
-        debugPrint('Firebase is using placeholder options. Running in simulation mode.');
+        debugPrint(
+          'Firebase is using placeholder options. Running in simulation mode.',
+        );
         _isInitialized = false;
         return;
       }
@@ -26,7 +28,9 @@ class FirebaseService {
       _isInitialized = true;
       debugPrint('Firebase initialized successfully.');
     } catch (e) {
-      debugPrint('Firebase initialization failed: $e. Running in simulation mode.');
+      debugPrint(
+        'Firebase initialization failed: $e. Running in simulation mode.',
+      );
       _isInitialized = false;
     }
   }

@@ -30,7 +30,8 @@ class GlassmorphicCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final fill =
         fillColor ?? (isDark ? AppColors.glassWhiteDark : AppColors.glassWhite);
-    final border = borderColor ??
+    final border =
+        borderColor ??
         (isDark ? AppColors.glassBorderDark : AppColors.glassBorder);
 
     return ClipRRect(

@@ -28,10 +28,8 @@ class _AnimatedGradientBgState extends State<AnimatedGradientBg>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    )..repeat(reverse: true);
+    _controller = AnimationController(vsync: this, duration: widget.duration)
+      ..repeat(reverse: true);
   }
 
   @override
@@ -43,7 +41,8 @@ class _AnimatedGradientBgState extends State<AnimatedGradientBg>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colors = widget.colors ??
+    final colors =
+        widget.colors ??
         (isDark
             ? const [Color(0xFF0A1628), Color(0xFF0F2E22), Color(0xFF0A1628)]
             : const [

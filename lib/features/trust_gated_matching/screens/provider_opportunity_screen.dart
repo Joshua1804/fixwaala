@@ -43,7 +43,9 @@ class _ProviderOpportunityScreenState extends State<ProviderOpportunityScreen> {
               title: Text('Plumbing job nearby'),
               subtitle: Text('~1.2 km · Estimated 20 min'),
             ),
-            const Text('Address will appear only after the customer confirms you.'),
+            const Text(
+              'Address will appear only after the customer confirms you.',
+            ),
             const Spacer(),
             if (_status == 'incoming')
               PrimaryButton(
@@ -60,8 +62,10 @@ class _ProviderOpportunityScreenState extends State<ProviderOpportunityScreen> {
                 ),
               )
             else if (_status == 'lost')
-              const Text('Someone else was assigned first.',
-                  textAlign: TextAlign.center),
+              const Text(
+                'Someone else was assigned first.',
+                textAlign: TextAlign.center,
+              ),
           ],
         ),
       ),

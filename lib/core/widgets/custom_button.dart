@@ -71,8 +71,8 @@ class _PrimaryButtonState extends State<PrimaryButton>
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : (widget.icon != null
-                  ? Icon(widget.icon)
-                  : const SizedBox.shrink()),
+                    ? Icon(widget.icon)
+                    : const SizedBox.shrink()),
           onPressed: widget.loading ? null : widget.onPressed,
           label: Text(widget.label),
         ),
@@ -96,13 +96,12 @@ class _PrimaryButtonState extends State<PrimaryButton>
                       width: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
                   : (widget.icon != null
-                      ? Icon(widget.icon)
-                      : const SizedBox.shrink()),
+                        ? Icon(widget.icon)
+                        : const SizedBox.shrink()),
               onPressed: widget.loading ? null : widget.onPressed,
               label: Text(widget.label),
             ),
@@ -147,8 +146,7 @@ class _PrimaryButtonState extends State<PrimaryButton>
                     width: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Colors.white),
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
                 : Row(

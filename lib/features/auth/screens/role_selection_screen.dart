@@ -65,39 +65,39 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
       parent: _entranceController,
       curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
     );
-    _headerSlide = Tween<Offset>(
-      begin: const Offset(0, -0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entranceController,
-      curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
-    ));
+    _headerSlide = Tween<Offset>(begin: const Offset(0, -0.3), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _entranceController,
+            curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
+          ),
+        );
 
     // Card 1: 15–55%
     _card1Fade = CurvedAnimation(
       parent: _entranceController,
       curve: const Interval(0.15, 0.55, curve: Curves.easeOut),
     );
-    _card1Slide = Tween<Offset>(
-      begin: const Offset(0, 0.4),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entranceController,
-      curve: const Interval(0.15, 0.55, curve: Curves.easeOutCubic),
-    ));
+    _card1Slide = Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _entranceController,
+            curve: const Interval(0.15, 0.55, curve: Curves.easeOutCubic),
+          ),
+        );
 
     // Card 2: 30–70%
     _card2Fade = CurvedAnimation(
       parent: _entranceController,
       curve: const Interval(0.3, 0.7, curve: Curves.easeOut),
     );
-    _card2Slide = Tween<Offset>(
-      begin: const Offset(0, 0.4),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entranceController,
-      curve: const Interval(0.3, 0.7, curve: Curves.easeOutCubic),
-    ));
+    _card2Slide = Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _entranceController,
+            curve: const Interval(0.3, 0.7, curve: Curves.easeOutCubic),
+          ),
+        );
 
     _entranceController.forward();
   }
@@ -110,10 +110,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
   }
 
   void _pick(UserRole role) {
-    Navigator.of(context).pushNamed(
-      RouteNames.phoneInput,
-      arguments: role,
-    );
+    Navigator.of(context).pushNamed(RouteNames.emailAuth, arguments: role);
   }
 
   @override
@@ -204,7 +201,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                       child: _PremiumRoleCard(
                         icon: Icons.home_repair_service_rounded,
                         title: AppStrings.roleCustomer,
-                        subtitle: 'Book verified plumbers, electricians\n& carpenters near you.',
+                        subtitle:
+                            'Book verified plumbers, electricians\n& carpenters near you.',
                         accentColor: AppColors.accentLight,
                         onTap: () => _pick(UserRole.customer),
                       ),
@@ -305,11 +303,7 @@ class _PremiumRoleCardState extends State<_PremiumRoleCard>
                   color: widget.accentColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  widget.icon,
-                  color: widget.accentColor,
-                  size: 26,
-                ),
+                child: Icon(widget.icon, color: widget.accentColor, size: 26),
               ),
               const SizedBox(width: 16),
               Expanded(

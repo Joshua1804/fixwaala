@@ -28,16 +28,20 @@ class VerificationStatusScreen extends StatelessWidget {
                   children: [
                     Icon(_iconFor(status), size: 72, color: _colorFor(status)),
                     const SizedBox(height: 16),
-                    Text(_labelFor(status),
-                        style: Theme.of(context).textTheme.headlineSmall),
+                    Text(
+                      _labelFor(status),
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
-                        'Admin will review your verification shortly. You can go online once approved.'),
+                      'Admin will review your verification shortly. You can go online once approved.',
+                    ),
                     const Spacer(),
                     if (status == VerificationStatus.approved)
                       FilledButton(
-                        onPressed: () => Navigator.of(context)
-                            .pushReplacementNamed(RouteNames.providerHome),
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pushReplacementNamed(RouteNames.providerHome),
                         child: const Text('Go to dashboard'),
                       ),
                   ],
@@ -51,23 +55,23 @@ class VerificationStatusScreen extends StatelessWidget {
   }
 
   IconData _iconFor(VerificationStatus s) => switch (s) {
-        VerificationStatus.approved => Icons.verified,
-        VerificationStatus.rejected => Icons.cancel,
-        VerificationStatus.resubmissionRequested => Icons.refresh,
-        VerificationStatus.pending => Icons.hourglass_top,
-      };
+    VerificationStatus.approved => Icons.verified,
+    VerificationStatus.rejected => Icons.cancel,
+    VerificationStatus.resubmissionRequested => Icons.refresh,
+    VerificationStatus.pending => Icons.hourglass_top,
+  };
 
   Color _colorFor(VerificationStatus s) => switch (s) {
-        VerificationStatus.approved => Colors.green,
-        VerificationStatus.rejected => Colors.red,
-        VerificationStatus.resubmissionRequested => Colors.orange,
-        VerificationStatus.pending => Colors.blueGrey,
-      };
+    VerificationStatus.approved => Colors.green,
+    VerificationStatus.rejected => Colors.red,
+    VerificationStatus.resubmissionRequested => Colors.orange,
+    VerificationStatus.pending => Colors.blueGrey,
+  };
 
   String _labelFor(VerificationStatus s) => switch (s) {
-        VerificationStatus.approved => 'Verified',
-        VerificationStatus.rejected => 'Rejected',
-        VerificationStatus.resubmissionRequested => 'Please resubmit',
-        VerificationStatus.pending => 'Pending review',
-      };
+    VerificationStatus.approved => 'Verified',
+    VerificationStatus.rejected => 'Rejected',
+    VerificationStatus.resubmissionRequested => 'Please resubmit',
+    VerificationStatus.pending => 'Pending review',
+  };
 }

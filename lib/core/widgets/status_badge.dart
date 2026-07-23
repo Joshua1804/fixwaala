@@ -38,17 +38,31 @@ class StatusBadge extends StatelessWidget {
   factory StatusBadge.neutral(String label, {IconData? icon}) =>
       StatusBadge(label: label, color: AppColors.textHint, icon: icon);
 
-  factory StatusBadge.online() =>
-      const StatusBadge(label: 'Online', color: AppColors.success, icon: Icons.circle, small: true);
+  factory StatusBadge.online() => const StatusBadge(
+    label: 'Online',
+    color: AppColors.success,
+    icon: Icons.circle,
+    small: true,
+  );
 
-  factory StatusBadge.offline() =>
-      const StatusBadge(label: 'Offline', color: AppColors.textHint, icon: Icons.circle, small: true);
+  factory StatusBadge.offline() => const StatusBadge(
+    label: 'Offline',
+    color: AppColors.textHint,
+    icon: Icons.circle,
+    small: true,
+  );
 
-  factory StatusBadge.verified() =>
-      const StatusBadge(label: 'Verified', color: AppColors.success, icon: Icons.verified);
+  factory StatusBadge.verified() => const StatusBadge(
+    label: 'Verified',
+    color: AppColors.success,
+    icon: Icons.verified,
+  );
 
-  factory StatusBadge.pending() =>
-      const StatusBadge(label: 'Pending', color: AppColors.warning, icon: Icons.schedule);
+  factory StatusBadge.pending() => const StatusBadge(
+    label: 'Pending',
+    color: AppColors.warning,
+    icon: Icons.schedule,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -74,10 +88,7 @@ class StatusBadge extends StatelessWidget {
           ],
           Text(
             label,
-            style: style.copyWith(
-              color: fgColor,
-              fontWeight: FontWeight.w600,
-            ),
+            style: style.copyWith(color: fgColor, fontWeight: FontWeight.w600),
           ),
         ],
       ),

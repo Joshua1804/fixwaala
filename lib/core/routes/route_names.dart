@@ -6,9 +6,11 @@ class RouteNames {
 
   // Module 1 - Auth
   static const roleSelection = '/auth/role';
-  static const phoneInput = '/auth/phone';
-  static const otpVerification = '/auth/otp';
-  static const registration = '/auth/register';
+  static const emailAuth = '/auth/email';
+  static const emailVerification = '/auth/verify-email';
+  static const passwordReset = '/auth/reset-password';
+  static const customerOnboarding = '/auth/onboarding/customer';
+  static const providerOnboarding = '/auth/onboarding/provider';
 
   // Module 2 - Provider verification
   static const aadhaarEntry = '/verify/aadhaar';
@@ -39,6 +41,11 @@ class RouteNames {
   static const inspection = '/job/inspection';
   static const estimate = '/job/estimate';
   static const completion = '/job/completion';
+  static const providerActiveJobs = '/provider/jobs';
+  static const providerJobDetails = '/provider/jobs/details';
+  static const providerStatusUpdate = '/provider/jobs/status';
+  static const providerInspectionEstimate =
+      '/provider/jobs/inspection-estimate';
 
   // Module 8 - Payment
   static const payment = '/payment';
@@ -49,6 +56,8 @@ class RouteNames {
   // Module 10 - Provider dashboard
   static const providerDashboard = '/provider/dashboard';
   static const providerPerformance = '/provider/performance';
+  static const providerEarnings = '/provider/earnings';
+  static const providerTrustScore = '/provider/trust-score';
 
   // Module 11 - Reports & safety
   static const report = '/report';
@@ -59,4 +68,8 @@ class RouteNames {
   static const adminDashboard = '/admin/dashboard';
   static const adminVerificationReview = '/admin/verifications';
   static const adminReports = '/admin/reports';
+  static const adminActiveTickets = '/admin/tickets';
+  static const adminSafetyAlerts = '/admin/safety-alerts';
+  static const adminAccounts = '/admin/accounts';
+  static const adminAuditEvents = '/admin/audit';
 }

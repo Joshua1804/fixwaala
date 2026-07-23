@@ -51,7 +51,13 @@ class _SelfieCaptureScreenState extends State<SelfieCaptureScreen> {
                 ),
                 child: _localPath == null
                     ? const Center(child: Icon(Icons.camera_alt, size: 64))
-                    : const Center(child: Icon(Icons.check_circle, size: 64, color: Colors.green)),
+                    : const Center(
+                        child: Icon(
+                          Icons.check_circle,
+                          size: 64,
+                          color: Colors.green,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 16),

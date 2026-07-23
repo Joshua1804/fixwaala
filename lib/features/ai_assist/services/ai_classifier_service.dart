@@ -6,9 +6,30 @@ class AiClassifierService {
   AiClassifierService._();
   static final AiClassifierService instance = AiClassifierService._();
 
-  static const _plumbingHints = ['leak', 'pipe', 'tap', 'drain', 'sink', 'flush'];
-  static const _electricalHints = ['fan', 'light', 'switch', 'wire', 'shock', 'socket'];
-  static const _carpentryHints = ['door', 'window', 'wood', 'furniture', 'hinge', 'cupboard'];
+  static const _plumbingHints = [
+    'leak',
+    'pipe',
+    'tap',
+    'drain',
+    'sink',
+    'flush',
+  ];
+  static const _electricalHints = [
+    'fan',
+    'light',
+    'switch',
+    'wire',
+    'shock',
+    'socket',
+  ];
+  static const _carpentryHints = [
+    'door',
+    'window',
+    'wood',
+    'furniture',
+    'hinge',
+    'cupboard',
+  ];
   static const _unsafeHints = ['spark', 'smoke', 'burn', 'gas leak'];
 
   bool containsSafetyKeyword(String description) {
@@ -47,17 +68,17 @@ class AiClassifierService {
   Future<List<String>> guidedQuestions(ServiceCategory category) async {
     return switch (category) {
       ServiceCategory.plumber => const [
-          'Is water actively leaking now?',
-          'Which fixture is affected?',
-        ],
+        'Is water actively leaking now?',
+        'Which fixture is affected?',
+      ],
       ServiceCategory.electrician => const [
-          'Does the circuit trip repeatedly?',
-          'Any burning smell?',
-        ],
+        'Does the circuit trip repeatedly?',
+        'Any burning smell?',
+      ],
       ServiceCategory.carpenter => const [
-          'Is anything broken beyond alignment?',
-          'Material — wood, MDF, or plywood?',
-        ],
+        'Is anything broken beyond alignment?',
+        'Material — wood, MDF, or plywood?',
+      ],
       _ => const ['Can you describe the problem in one line?'],
     };
   }

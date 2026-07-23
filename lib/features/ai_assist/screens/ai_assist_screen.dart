@@ -26,8 +26,8 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
   }
 
   Future<void> _run() async {
-    final args = ModalRoute.of(context)?.settings.arguments
-        as Map<String, dynamic>? ??
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
         const {};
     final result = await AiClassifierService.instance.classifyWithAi(
       description: args['description'] ?? '',
@@ -42,10 +42,13 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
 
   void _confirm() {
     final category = _override ?? _result?.category ?? ServiceCategory.unknown;
-    Navigator.of(context).pushNamed(RouteNames.ticketReview, arguments: {
-      'category': category.name,
-      'complexity': _result?.complexity.name,
-    });
+    Navigator.of(context).pushNamed(
+      RouteNames.ticketReview,
+      arguments: {
+        'category': category.name,
+        'complexity': _result?.complexity.name,
+      },
+    );
   }
 
   @override
@@ -66,12 +69,15 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
                         leading: Icon(Icons.warning, color: Colors.red),
                         title: Text('Potential safety concern detected'),
                         subtitle: Text(
-                            'Please move to a safe distance. Consider emergency services if urgent.'),
+                          'Please move to a safe distance. Consider emergency services if urgent.',
+                        ),
                       ),
                     ),
                   const SizedBox(height: 8),
-                  Text('Suggested category',
-                      style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Suggested category',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -88,7 +94,8 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                      'Confidence: ${((_result?.confidence ?? 0) * 100).toStringAsFixed(0)}%'),
+                    'Confidence: ${((_result?.confidence ?? 0) * 100).toStringAsFixed(0)}%',
+                  ),
                   const Spacer(),
                   PrimaryButton(label: 'Confirm', onPressed: _confirm),
                 ],

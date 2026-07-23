@@ -16,7 +16,8 @@ class InspectionScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-                'Provider is inspecting the issue. You will see the estimate once submitted.'),
+              'Provider is inspecting the issue. You will see the estimate once submitted.',
+            ),
             const Spacer(),
             PrimaryButton(
               label: 'Simulate: estimate received',

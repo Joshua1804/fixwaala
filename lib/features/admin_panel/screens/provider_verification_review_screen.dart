@@ -16,9 +16,9 @@ class ProviderVerificationReviewScreen extends StatelessWidget {
       decision: decision,
     );
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Marked ${decision.name}')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Marked ${decision.name}')));
   }
 
   @override

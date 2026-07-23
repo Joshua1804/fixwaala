@@ -6,6 +6,7 @@ class PaymentRecord {
   final double amount;
   final String method; // simulated: 'upi', 'card', 'cash'
   final PaymentStatus status;
+  final String? failureReason;
   final DateTime processedAt;
 
   const PaymentRecord({
@@ -15,5 +16,6 @@ class PaymentRecord {
     required this.method,
     required this.status,
     required this.processedAt,
+    this.failureReason,
   });
 }

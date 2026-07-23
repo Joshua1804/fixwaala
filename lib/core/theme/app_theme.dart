@@ -86,8 +86,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: AppColors.divider),
@@ -107,9 +109,7 @@ class AppTheme {
         labelStyle: AppTextStyles.bodyMedium.copyWith(
           color: AppColors.textSecondary,
         ),
-        hintStyle: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.textHint,
-        ),
+        hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint),
         floatingLabelStyle: AppTextStyles.labelMedium.copyWith(
           color: AppColors.primary,
         ),
@@ -280,8 +280,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.cardDark,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: AppColors.glassBorderDark),
@@ -292,19 +294,17 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide:
-              const BorderSide(color: AppColors.primaryLight, width: 1.5),
+          borderSide: const BorderSide(
+            color: AppColors.primaryLight,
+            width: 1.5,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.error),
         ),
-        labelStyle: AppTextStyles.bodyMedium.copyWith(
-          color: Colors.white70,
-        ),
-        hintStyle: AppTextStyles.bodyMedium.copyWith(
-          color: Colors.white38,
-        ),
+        labelStyle: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
+        hintStyle: AppTextStyles.bodyMedium.copyWith(color: Colors.white38),
         floatingLabelStyle: AppTextStyles.labelMedium.copyWith(
           color: AppColors.primaryLight,
         ),
@@ -351,16 +351,19 @@ class AppTheme {
       ),
 
       textTheme: TextTheme(
-        displayLarge:
-            AppTextStyles.displayLarge.copyWith(color: Colors.white),
-        displayMedium:
-            AppTextStyles.displayMedium.copyWith(color: Colors.white),
-        headlineLarge:
-            AppTextStyles.headlineLarge.copyWith(color: Colors.white),
-        headlineMedium:
-            AppTextStyles.headlineMedium.copyWith(color: Colors.white),
-        headlineSmall:
-            AppTextStyles.headlineSmall.copyWith(color: Colors.white),
+        displayLarge: AppTextStyles.displayLarge.copyWith(color: Colors.white),
+        displayMedium: AppTextStyles.displayMedium.copyWith(
+          color: Colors.white,
+        ),
+        headlineLarge: AppTextStyles.headlineLarge.copyWith(
+          color: Colors.white,
+        ),
+        headlineMedium: AppTextStyles.headlineMedium.copyWith(
+          color: Colors.white,
+        ),
+        headlineSmall: AppTextStyles.headlineSmall.copyWith(
+          color: Colors.white,
+        ),
         titleLarge: AppTextStyles.titleLarge.copyWith(color: Colors.white),
         titleMedium: AppTextStyles.titleMedium.copyWith(color: Colors.white),
         titleSmall: AppTextStyles.titleSmall.copyWith(color: Colors.white),
@@ -368,8 +371,7 @@ class AppTheme {
         bodyMedium: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
         bodySmall: AppTextStyles.bodySmall.copyWith(color: Colors.white54),
         labelLarge: AppTextStyles.labelLarge.copyWith(color: Colors.white),
-        labelMedium:
-            AppTextStyles.labelMedium.copyWith(color: Colors.white70),
+        labelMedium: AppTextStyles.labelMedium.copyWith(color: Colors.white70),
         labelSmall: AppTextStyles.labelSmall.copyWith(color: Colors.white38),
       ),
     );

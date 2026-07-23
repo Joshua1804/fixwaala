@@ -47,15 +47,15 @@ class _ProviderReviewScreenState extends State<ProviderReviewScreen> {
       providerId: 'provider-id-stub',
     );
     if (!mounted) return;
-    Navigator.of(context)
-        .pushReplacementNamed(RouteNames.matchingProgress);
+    Navigator.of(context).pushReplacementNamed(RouteNames.matchingProgress);
   }
 
   Future<void> _confirm() async {
     _timer.cancel();
     await MatchingService.instance.confirmProvider(
       ticketId: 'ticket-id-stub',
-      providerId: 'provider-id-stub',
+      providerId: AppConstants.demoProviderId,
+      providerName: AppConstants.demoProviderName,
     );
     if (!mounted) return;
     Navigator.of(context).pushReplacementNamed(RouteNames.jobTracking);
@@ -68,8 +68,7 @@ class _ProviderReviewScreenState extends State<ProviderReviewScreen> {
       providerId: 'provider-id-stub',
     );
     if (!mounted) return;
-    Navigator.of(context)
-        .pushReplacementNamed(RouteNames.matchingProgress);
+    Navigator.of(context).pushReplacementNamed(RouteNames.matchingProgress);
   }
 
   @override
@@ -81,8 +80,10 @@ class _ProviderReviewScreenState extends State<ProviderReviewScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Center(
-              child: Text('${_remaining}s',
-                  style: Theme.of(context).textTheme.titleMedium),
+              child: Text(
+                '${_remaining}s',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ),
           ),
         ],
@@ -170,11 +171,7 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: [
-        Icon(icon),
-        const SizedBox(height: 4),
-        Text(label),
-      ],
+      children: [Icon(icon), const SizedBox(height: 4), Text(label)],
     );
   }
 }

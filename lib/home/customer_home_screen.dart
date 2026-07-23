@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../core/models/enums.dart';
 import '../core/models/user_model.dart';
 import '../core/routes/route_names.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../features/auth/services/auth_service.dart';
+import '../features/service_lifecycle/models/job_model.dart';
+import '../features/service_lifecycle/services/job_service.dart';
+import '../features/service_lifecycle/widgets/job_status_ui.dart';
 import '../core/widgets/status_badge.dart';
 
 /// Customer home screen with bottom navigation, gradient AppBar greeting,
@@ -30,10 +34,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _fade = CurvedAnimation(
-      parent: _entranceController,
-      curve: Curves.easeOut,
-    );
+    _fade = CurvedAnimation(parent: _entranceController, curve: Curves.easeOut);
     _entranceController.forward();
   }
 
@@ -149,14 +150,15 @@ class _HomeTab extends StatelessWidget {
                                   children: [
                                     Text(
                                       'Hi $name! 👋',
-                                      style: AppTextStyles.headlineSmall.copyWith(
-                                        color: Colors.white,
-                                      ),
+                                      style: AppTextStyles.headlineSmall
+                                          .copyWith(color: Colors.white),
                                     ),
                                     Text(
                                       'What needs fixing today?',
                                       style: AppTextStyles.bodySmall.copyWith(
-                                        color: Colors.white.withValues(alpha: 0.7),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.7,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -191,8 +193,10 @@ class _HomeTab extends StatelessWidget {
                 onTap: () =>
                     Navigator.of(context).pushNamed(RouteNames.createTicket),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardTheme.color,
                     borderRadius: BorderRadius.circular(14),
@@ -207,8 +211,11 @@ class _HomeTab extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.search_rounded,
-                          color: AppColors.textHint, size: 22),
+                      Icon(
+                        Icons.search_rounded,
+                        color: AppColors.textHint,
+                        size: 22,
+                      ),
                       const SizedBox(width: 12),
                       Text(
                         'Describe your problem...',
@@ -243,10 +250,7 @@ class _HomeTab extends StatelessWidget {
             opacity: fadeAnimation,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Text(
-                'Services',
-                style: AppTextStyles.titleLarge,
-              ),
+              child: Text('Services', style: AppTextStyles.titleLarge),
             ),
           ),
         ),
@@ -271,13 +275,10 @@ class _HomeTab extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Active Tickets',
-                    style: AppTextStyles.titleLarge,
-                  ),
+                  Text('Active Tickets', style: AppTextStyles.titleLarge),
                   TextButton(
-                    onPressed: () => Navigator.of(context)
-                        .pushNamed(RouteNames.myTickets),
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed(RouteNames.myTickets),
                     child: const Text('See all'),
                   ),
                 ],
@@ -294,9 +295,7 @@ class _HomeTab extends StatelessWidget {
         ),
 
         // Bottom padding
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 80),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 80)),
       ],
     );
   }
@@ -307,10 +306,30 @@ class _CategoryGrid extends StatelessWidget {
   const _CategoryGrid();
 
   static const _tiles = [
-    ('Plumbing', Icons.plumbing, AppColors.plumbing, [Color(0xFF3B82F6), Color(0xFF60A5FA)]),
-    ('Electrical', Icons.electrical_services, AppColors.electrical, [Color(0xFFF59E0B), Color(0xFFFBBF24)]),
-    ('Carpentry', Icons.chair_alt, AppColors.carpentry, [Color(0xFF8B5CF6), Color(0xFFA78BFA)]),
-    ('Other', Icons.handyman_rounded, AppColors.otherCat, [Color(0xFF6B7280), Color(0xFF9CA3AF)]),
+    (
+      'Plumbing',
+      Icons.plumbing,
+      AppColors.plumbing,
+      [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+    ),
+    (
+      'Electrical',
+      Icons.electrical_services,
+      AppColors.electrical,
+      [Color(0xFFF59E0B), Color(0xFFFBBF24)],
+    ),
+    (
+      'Carpentry',
+      Icons.chair_alt,
+      AppColors.carpentry,
+      [Color(0xFF8B5CF6), Color(0xFFA78BFA)],
+    ),
+    (
+      'Other',
+      Icons.handyman_rounded,
+      AppColors.otherCat,
+      [Color(0xFF6B7280), Color(0xFF9CA3AF)],
+    ),
   ];
 
   @override
@@ -322,13 +341,18 @@ class _CategoryGrid extends StatelessWidget {
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       childAspectRatio: 1.5,
-      children: _tiles.map((t) => _CategoryCard(
-        label: t.$1,
-        icon: t.$2,
-        color: t.$3,
-        gradientColors: t.$4,
-        onTap: () => Navigator.of(context).pushNamed(RouteNames.createTicket),
-      )).toList(),
+      children: _tiles
+          .map(
+            (t) => _CategoryCard(
+              label: t.$1,
+              icon: t.$2,
+              color: t.$3,
+              gradientColors: t.$4,
+              onTap: () =>
+                  Navigator.of(context).pushNamed(RouteNames.createTicket),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -364,9 +388,10 @@ class _CategoryCardState extends State<_CategoryCard>
       vsync: this,
       duration: const Duration(milliseconds: 100),
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -390,9 +415,7 @@ class _CategoryCardState extends State<_CategoryCard>
           decoration: BoxDecoration(
             color: widget.color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: widget.color.withValues(alpha: 0.15),
-            ),
+            border: Border.all(color: widget.color.withValues(alpha: 0.15)),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -401,9 +424,7 @@ class _CategoryCardState extends State<_CategoryCard>
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: widget.gradientColors,
-                  ),
+                  gradient: LinearGradient(colors: widget.gradientColors),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
@@ -418,9 +439,7 @@ class _CategoryCardState extends State<_CategoryCard>
               const SizedBox(height: 10),
               Text(
                 widget.label,
-                style: AppTextStyles.labelLarge.copyWith(
-                  color: widget.color,
-                ),
+                style: AppTextStyles.labelLarge.copyWith(color: widget.color),
               ),
             ],
           ),
@@ -431,6 +450,9 @@ class _CategoryCardState extends State<_CategoryCard>
 }
 
 // ── Active Ticket Preview ──────────────────────────────────────────
+/// Reflects the customer's real, currently in-flight job (if any). Tapping
+/// it opens the live Job Tracking screen — this is the entry point back
+/// into the Service Job Lifecycle flow after a provider has been confirmed.
 class _ActiveTicketPreview extends StatelessWidget {
   const _ActiveTicketPreview();
 
@@ -438,6 +460,40 @@ class _ActiveTicketPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: FutureBuilder<AppUser?>(
+        future: AuthService.instance.currentUser(),
+        builder: (context, userSnapshot) {
+          final customerId = userSnapshot.data?.id;
+          if (customerId == null) return const SizedBox.shrink();
+
+          return StreamBuilder<Job>(
+            stream: JobService.instance.watchAllChanges(),
+            builder: (context, _) {
+              final job = JobService.instance.activeJobForCustomer(customerId);
+              if (job == null) {
+                return _NoActiveTicketCard(
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(RouteNames.createTicket),
+                );
+              }
+              return _ActiveJobCard(job: job);
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _NoActiveTicketCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _NoActiveTicketCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -445,7 +501,65 @@ class _ActiveTicketPreview extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: AppColors.divider.withValues(alpha: 0.5),
+            style: BorderStyle.solid,
           ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.textHint.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.assignment_add,
+                color: AppColors.textHint,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('No active ticket', style: AppTextStyles.titleMedium),
+                  Text(
+                    'Tap to describe a problem and get matched',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textHint),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A live card for a real [Job], reused on the Home tab and Tickets tab.
+class _ActiveJobCard extends StatelessWidget {
+  final Job job;
+  const _ActiveJobCard({required this.job});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.of(
+        context,
+      ).pushNamed(RouteNames.jobTracking, arguments: job.jobId),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
         ),
         child: Column(
           children: [
@@ -455,24 +569,24 @@ class _ActiveTicketPreview extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppColors.plumbing.withValues(alpha: 0.1),
+                    color: JobStatusUi.color(job.status).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.plumbing,
-                      color: AppColors.plumbing, size: 20),
+                  child: Icon(
+                    _categoryIcon(job.category),
+                    color: JobStatusUi.color(job.status),
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Kitchen sink leaking',
-                        style: AppTextStyles.titleMedium,
-                      ),
+                      Text(job.providerName, style: AppTextStyles.titleMedium),
                       const SizedBox(height: 2),
                       Text(
-                        'Plumbing • 2 hours ago',
+                        _categoryLabel(job.category),
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textHint,
                         ),
@@ -480,25 +594,33 @@ class _ActiveTicketPreview extends StatelessWidget {
                     ],
                   ),
                 ),
-                StatusBadge.info('Matching'),
+                StatusBadge(
+                  label: JobStatusUi.label(job.status),
+                  color: JobStatusUi.color(job.status),
+                ),
               ],
             ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: 0.06),
+                color: JobStatusUi.color(job.status).withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.search_rounded,
-                      size: 16, color: AppColors.info),
+                  Icon(
+                    JobStatusUi.icon(job.status),
+                    size: 16,
+                    color: JobStatusUi.color(job.status),
+                  ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Searching for nearby providers...',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.info,
+                  Expanded(
+                    child: Text(
+                      JobStatusUi.customerMessage(job.status),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: JobStatusUi.color(job.status),
+                      ),
                     ),
                   ),
                 ],
@@ -509,37 +631,76 @@ class _ActiveTicketPreview extends StatelessWidget {
       ),
     );
   }
+
+  IconData _categoryIcon(ServiceCategory category) => switch (category) {
+    ServiceCategory.plumber => Icons.plumbing,
+    ServiceCategory.electrician => Icons.electrical_services,
+    ServiceCategory.carpenter => Icons.chair_alt,
+    ServiceCategory.unknown => Icons.handyman_rounded,
+  };
+
+  String _categoryLabel(ServiceCategory category) => switch (category) {
+    ServiceCategory.plumber => 'Plumbing',
+    ServiceCategory.electrician => 'Electrical',
+    ServiceCategory.carpenter => 'Carpentry',
+    ServiceCategory.unknown => 'Other',
+  };
 }
 
-// ── Placeholder tabs ────────────────────────────────────────────────
+// ── Tickets tab ──────────────────────────────────────────────────────
 class _TicketsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('My Tickets')),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.receipt_long_rounded,
-                size: 64,
-                color: AppColors.textHint.withValues(alpha: 0.3)),
-            const SizedBox(height: 16),
-            Text(
-              'No tickets yet',
-              style: AppTextStyles.titleMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Create your first service request',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textHint,
-              ),
-            ),
-          ],
-        ),
+      body: FutureBuilder<AppUser?>(
+        future: AuthService.instance.currentUser(),
+        builder: (context, userSnapshot) {
+          final customerId = userSnapshot.data?.id;
+          return StreamBuilder<Job>(
+            stream: JobService.instance.watchAllChanges(),
+            builder: (context, _) {
+              final job = customerId == null
+                  ? null
+                  : JobService.instance.activeJobForCustomer(customerId);
+              return ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text('Active', style: AppTextStyles.titleLarge),
+                  const SizedBox(height: 12),
+                  if (job != null)
+                    _ActiveJobCard(job: job)
+                  else
+                    _NoActiveTicketCard(
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pushNamed(RouteNames.createTicket),
+                    ),
+                  const SizedBox(height: 28),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('History', style: AppTextStyles.titleLarge),
+                      TextButton(
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pushNamed(RouteNames.myTickets),
+                        child: const Text('See all'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Past tickets and completed jobs appear here.',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -572,8 +733,11 @@ class _ProfileTab extends StatelessWidget {
                         color: AppColors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.person_rounded,
-                          size: 36, color: AppColors.primary),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        size: 36,
+                        color: AppColors.primary,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(name, style: AppTextStyles.headlineSmall),
@@ -582,10 +746,12 @@ class _ProfileTab extends StatelessWidget {
                       Text(email, style: AppTextStyles.bodyMedium),
                     ],
                     const SizedBox(height: 4),
-                    Text('+91 $phone',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        )),
+                    Text(
+                      '+91 $phone',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -599,8 +765,7 @@ class _ProfileTab extends StatelessWidget {
               _ProfileTile(
                 icon: Icons.report_outlined,
                 label: 'Report an Issue',
-                onTap: () =>
-                    Navigator.of(context).pushNamed(RouteNames.report),
+                onTap: () => Navigator.of(context).pushNamed(RouteNames.report),
               ),
               _ProfileTile(
                 icon: Icons.help_outline_rounded,
@@ -617,8 +782,9 @@ class _ProfileTab extends StatelessWidget {
                 icon: Icons.logout_rounded,
                 label: 'Sign Out',
                 isDestructive: true,
-                onTap: () => Navigator.of(context)
-                    .pushReplacementNamed(RouteNames.roleSelection),
+                onTap: () => Navigator.of(
+                  context,
+                ).pushReplacementNamed(RouteNames.roleSelection),
               ),
             ],
           );
@@ -657,12 +823,12 @@ class _ProfileTile extends StatelessWidget {
         ),
         child: Icon(icon, color: color, size: 20),
       ),
-      title: Text(
-        label,
-        style: AppTextStyles.bodyLarge.copyWith(color: color),
+      title: Text(label, style: AppTextStyles.bodyLarge.copyWith(color: color)),
+      trailing: Icon(
+        Icons.chevron_right_rounded,
+        color: AppColors.textHint,
+        size: 20,
       ),
-      trailing: Icon(Icons.chevron_right_rounded,
-          color: AppColors.textHint, size: 20),
     );
   }
 }

@@ -16,7 +16,10 @@ class NotificationService {
     // TODO
   }
 
-  Future<void> showLocalAlert({required String title, required String body}) async {
+  Future<void> showLocalAlert({
+    required String title,
+    required String body,
+  }) async {
     // TODO: flutter_local_notifications wire-up.
   }
 }

@@ -9,8 +9,8 @@ class TicketReviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments
-        as Map<String, dynamic>? ??
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
         const {};
     return Scaffold(
       appBar: AppBar(title: const Text('Review request')),
@@ -20,12 +20,21 @@ class TicketReviewScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _SummaryTile(
-                label: 'Category', value: args['category']?.toString() ?? '—'),
+              label: 'Category',
+              value: args['category']?.toString() ?? '—',
+            ),
             _SummaryTile(
-                label: 'Complexity', value: args['complexity']?.toString() ?? '—'),
+              label: 'Complexity',
+              value: args['complexity']?.toString() ?? '—',
+            ),
             _SummaryTile(
-                label: 'Description', value: args['description'] ?? '—'),
-            _SummaryTile(label: 'Location', value: args['address'] ?? 'Current'),
+              label: 'Description',
+              value: args['description'] ?? '—',
+            ),
+            _SummaryTile(
+              label: 'Location',
+              value: args['address'] ?? 'Current',
+            ),
             const Spacer(),
             const Text(
               'Your exact address stays private until you confirm a provider.',
@@ -38,8 +47,9 @@ class TicketReviewScreen extends StatelessWidget {
                 // TODO: build Ticket from args, call TicketService.createTicket.
                 TicketService.instance;
                 if (!context.mounted) return;
-                Navigator.of(context)
-                    .pushReplacementNamed(RouteNames.matchingProgress);
+                Navigator.of(
+                  context,
+                ).pushReplacementNamed(RouteNames.matchingProgress);
               },
             ),
           ],

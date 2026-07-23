@@ -27,8 +27,9 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     if (ok) {
       Navigator.of(context).pushReplacementNamed(RouteNames.adminDashboard);
     } else {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Invalid admin credentials')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid admin credentials')),
+      );
     }
   }
 

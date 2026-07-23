@@ -33,23 +33,23 @@ class VerificationService {
 
   Future<void> submitForAdminReview(ProviderVerification v) async {
     if (!FirebaseService.instance.isInitialized) return;
-    
+
     // Write verification submission to Firestore user document
     await FirebaseService.instance.firestore
         .collection('users')
         .doc(v.providerId)
         .update({
-      'verificationStatus': VerificationStatus.pending.name,
-      'aadhaarNumber': v.maskedAadhaar,
-      'selfieUrl': v.selfieUrl,
-    });
+          'verificationStatus': VerificationStatus.pending.name,
+          'aadhaarNumber': v.maskedAadhaar,
+          'selfieUrl': v.selfieUrl,
+        });
   }
 
   Future<VerificationStatus> status(String providerId) async {
     if (!FirebaseService.instance.isInitialized) {
       return VerificationStatus.pending;
     }
-    
+
     try {
       final doc = await FirebaseService.instance.firestore
           .collection('users')

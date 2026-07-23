@@ -12,8 +12,12 @@ class Helpers {
     final dLon = _deg2rad(b.longitude - a.longitude);
     final lat1 = _deg2rad(a.latitude);
     final lat2 = _deg2rad(b.latitude);
-    final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2) * math.sin(dLon / 2);
+    final h =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1) *
+            math.cos(lat2) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
     return 2 * earthKm * math.asin(math.min(1, math.sqrt(h)));
   }
 

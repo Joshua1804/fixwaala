@@ -8,14 +8,6 @@ class Validators {
     return null;
   }
 
-  static String? otp(String? value, {int length = 6}) {
-    if (value == null || value.length != length) {
-      return 'Enter the $length-digit OTP';
-    }
-    if (!RegExp(r'^\d+$').hasMatch(value)) return 'OTP must be numeric';
-    return null;
-  }
-
   static String? aadhaar(String? value) {
     if (value == null) return 'Aadhaar required';
     final digits = value.replaceAll(' ', '');
