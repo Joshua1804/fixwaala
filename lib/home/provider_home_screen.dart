@@ -12,6 +12,9 @@ import '../features/provider_dashboard/services/analytics_service.dart';
 import '../features/service_lifecycle/models/job_model.dart';
 import '../features/service_lifecycle/screens/active_jobs_screen.dart';
 import '../features/service_lifecycle/services/job_service.dart';
+import '../features/customer_ticket/models/ticket_model.dart';
+import '../features/customer_ticket/services/ticket_service.dart';
+import '../features/trust_gated_matching/services/matching_service.dart';
 import '../core/widgets/status_badge.dart';
 
 /// Provider home screen with bottom navigation, gradient header with
@@ -310,7 +313,92 @@ class _ProviderHomeTab extends StatelessWidget {
           ),
         ),
 
-        // ── Section: Opportunities ────────────────────────────
+        // ── Section: Available Opportunities ───────────────────
+        if (online)
+          StreamBuilder<List<Ticket>>(
+            stream: TicketService.instance.watchMatchingTickets(),
+            builder: (context, snapshot) {
+              final tickets = snapshot.data ?? [];
+              return SliverToBoxAdapter(
+                child: FadeTransition(
+                  opacity: fadeAnimation,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Incoming Service Requests',
+                              style: AppTextStyles.titleLarge,
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.error,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '${tickets.length} LIVE',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (tickets.isEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardTheme.color,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: AppColors.divider.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.search_rounded,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Waiting for customer requests nearby...',
+                                    style: AppTextStyles.bodyMedium.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          ...tickets.map(
+                            (ticket) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _OpportunityTicketCard(ticket: ticket),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+        // ── Section: Quick Actions ────────────────────────────
         SliverToBoxAdapter(
           child: FadeTransition(
             opacity: fadeAnimation,
@@ -328,16 +416,6 @@ class _ProviderHomeTab extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: [
-                  _ActionCard(
-                    icon: Icons.notifications_active_rounded,
-                    title: 'Simulate incoming opportunity',
-                    subtitle: 'Test the job matching flow',
-                    color: AppColors.accent,
-                    onTap: () => Navigator.of(
-                      context,
-                    ).pushNamed(RouteNames.providerOpportunity),
-                  ),
-                  const SizedBox(height: 10),
                   _ActionCard(
                     icon: Icons.account_balance_wallet_rounded,
                     title: 'Earnings summary',
@@ -737,7 +815,17 @@ class _ProviderProfileTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? AppColors.error : AppColors.textPrimary;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    final color = isDestructive 
+        ? AppColors.error 
+        : (isDark ? Colors.white : AppColors.textPrimary);
+        
+    final iconColor = isDestructive
+        ? AppColors.error
+        : AppColors.primary;
+
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -749,7 +837,7 @@ class _ProviderProfileTile extends StatelessWidget {
               .withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: color, size: 20),
+        child: Icon(icon, color: iconColor, size: 20),
       ),
       title: Text(label, style: AppTextStyles.bodyLarge.copyWith(color: color)),
       trailing: Icon(
@@ -757,6 +845,179 @@ class _ProviderProfileTile extends StatelessWidget {
         color: AppColors.textHint,
         size: 20,
       ),
+    );
+  }
+}
+
+// ── Opportunity Ticket Card ────────────────────────────────────────
+class _OpportunityTicketCard extends StatefulWidget {
+  final Ticket ticket;
+  const _OpportunityTicketCard({required this.ticket});
+
+  @override
+  State<_OpportunityTicketCard> createState() => _OpportunityTicketCardState();
+}
+
+class _OpportunityTicketCardState extends State<_OpportunityTicketCard> {
+  bool _accepting = false;
+
+  Future<void> _accept(AppUser? currentProvider) async {
+    setState(() => _accepting = true);
+    try {
+      final providerId = currentProvider?.id ?? AppConstants.demoProviderId;
+      final providerName = currentProvider?.name ?? AppConstants.demoProviderName;
+
+      final lease = await MatchingService.instance.acceptOpportunity(
+        ticketId: widget.ticket.id,
+        providerId: providerId,
+        provider: currentProvider,
+      );
+
+      if (lease != null) {
+        await MatchingService.instance.confirmProvider(
+          ticketId: widget.ticket.id,
+          providerId: providerId,
+          providerName: providerName,
+          customerName: widget.ticket.customerName,
+          category: widget.ticket.category,
+        );
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Accepted ticket from ${widget.ticket.customerName}!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        Navigator.of(context).pushNamed(RouteNames.providerActiveJobs);
+      }
+    } finally {
+      if (mounted) setState(() => _accepting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<AppUser?>(
+      future: AuthService.instance.currentUser(),
+      builder: (context, userSnap) {
+        final currentProvider = userSnap.data;
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      widget.ticket.category.name.toUpperCase(),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${widget.ticket.createdAt.hour.toString().padLeft(2, '0')}:${widget.ticket.createdAt.minute.toString().padLeft(2, '0')}',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Customer: ${widget.ticket.customerName}',
+                style: AppTextStyles.titleMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.ticket.description,
+                style: AppTextStyles.bodyMedium,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (widget.ticket.addressLine != null &&
+                  widget.ticket.addressLine!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 16,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        widget.ticket.addressLine!,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _accepting ? null : () => _accept(currentProvider),
+                  icon: _accepting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_circle_outline, size: 20),
+                  label: Text(_accepting ? 'Accept Ticket' : 'Accept Ticket'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -6,6 +6,8 @@ import '../core/routes/route_names.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../features/auth/services/auth_service.dart';
+import '../features/customer_ticket/models/ticket_model.dart';
+import '../features/customer_ticket/services/ticket_service.dart';
 import '../features/service_lifecycle/models/job_model.dart';
 import '../features/service_lifecycle/services/job_service.dart';
 import '../features/service_lifecycle/widgets/job_status_ui.dart';
@@ -648,62 +650,402 @@ class _ActiveJobCard extends StatelessWidget {
 }
 
 // ── Tickets tab ──────────────────────────────────────────────────────
-class _TicketsTab extends StatelessWidget {
+class _TicketsTab extends StatefulWidget {
+  @override
+  State<_TicketsTab> createState() => _TicketsTabState();
+}
+
+class _TicketsTabState extends State<_TicketsTab>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Tickets')),
+      appBar: AppBar(
+        title: const Text('My Tickets'),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppColors.primary,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textHint,
+          labelStyle: AppTextStyles.titleMedium,
+          unselectedLabelStyle: AppTextStyles.bodyMedium,
+          tabs: const [
+            Tab(text: 'Active'),
+            Tab(text: 'History'),
+          ],
+        ),
+      ),
       body: FutureBuilder<AppUser?>(
         future: AuthService.instance.currentUser(),
         builder: (context, userSnapshot) {
           final customerId = userSnapshot.data?.id;
-          return StreamBuilder<Job>(
-            stream: JobService.instance.watchAllChanges(),
-            builder: (context, _) {
-              final job = customerId == null
-                  ? null
-                  : JobService.instance.activeJobForCustomer(customerId);
-              return ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Text('Active', style: AppTextStyles.titleLarge),
-                  const SizedBox(height: 12),
-                  if (job != null)
-                    _ActiveJobCard(job: job)
-                  else
-                    _NoActiveTicketCard(
-                      onTap: () => Navigator.of(
-                        context,
-                      ).pushNamed(RouteNames.createTicket),
-                    ),
-                  const SizedBox(height: 28),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('History', style: AppTextStyles.titleLarge),
-                      TextButton(
-                        onPressed: () => Navigator.of(
-                          context,
-                        ).pushNamed(RouteNames.myTickets),
-                        child: const Text('See all'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Past tickets and completed jobs appear here.',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textHint,
-                    ),
-                  ),
-                ],
-              );
-            },
+          if (customerId == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _ActiveTicketsView(customerId: customerId),
+              _HistoryTicketsView(customerId: customerId),
+            ],
           );
         },
       ),
     );
   }
+}
+
+// ── Active tickets sub-view ─────────────────────────────────────────
+class _ActiveTicketsView extends StatelessWidget {
+  final String customerId;
+  const _ActiveTicketsView({required this.customerId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Ticket>>(
+      stream: TicketService.instance.watchMyTickets(customerId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final allTickets = snapshot.data ?? [];
+        final active = allTickets.where((t) => t.isActive).toList();
+
+        // Also check for an active Job (from the in-memory JobService)
+        final activeJob = JobService.instance.activeJobForCustomer(customerId);
+
+        if (active.isEmpty && activeJob == null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.check_circle_outline_rounded,
+                    size: 64,
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No active tickets',
+                    style: AppTextStyles.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Raise a new service request using the + button',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: (activeJob != null ? 1 : 0) + active.length,
+          itemBuilder: (context, i) {
+            // Show active job card first
+            if (activeJob != null && i == 0) {
+              return _ActiveJobCard(job: activeJob);
+            }
+            final ticketIndex = i - (activeJob != null ? 1 : 0);
+            final ticket = active[ticketIndex];
+            return _TicketCard(ticket: ticket);
+          },
+        );
+      },
+    );
+  }
+}
+
+// ── History tickets sub-view ─────────────────────────────────────────
+class _HistoryTicketsView extends StatelessWidget {
+  final String customerId;
+  const _HistoryTicketsView({required this.customerId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Ticket>>(
+      stream: TicketService.instance.watchMyTickets(customerId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final allTickets = snapshot.data ?? [];
+        final history = allTickets.where((t) => !t.isActive).toList();
+
+        // Also include completed/cancelled jobs from JobService
+        final pastJobs = JobService.instance
+            .completedJobsForProvider(customerId);
+
+        if (history.isEmpty && pastJobs.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.history_rounded,
+                    size: 64,
+                    color: AppColors.textHint.withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No past tickets',
+                    style: AppTextStyles.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Completed and cancelled tickets will appear here',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: history.length,
+          itemBuilder: (context, i) {
+            return _TicketCard(ticket: history[i], isHistory: true);
+          },
+        );
+      },
+    );
+  }
+}
+
+// ── Ticket card widget ──────────────────────────────────────────────
+class _TicketCard extends StatelessWidget {
+  final Ticket ticket;
+  final bool isHistory;
+
+  const _TicketCard({required this.ticket, this.isHistory = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final statusColor = _statusColor(ticket.status);
+    final statusLabel = _statusLabel(ticket.status);
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).pushNamed(
+          RouteNames.jobTracking,
+          arguments: {'ticketId': ticket.id},
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark
+                ? AppColors.glassBorderDark
+                : AppColors.divider.withValues(alpha: 0.5),
+          ),
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _categoryColor(ticket.category)
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    _categoryIcon(ticket.category),
+                    color: _categoryColor(ticket.category),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _categoryLabel(ticket.category),
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: isDark ? Colors.white : AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        ticket.description.length > 50
+                            ? '${ticket.description.substring(0, 50)}...'
+                            : ticket.description,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textHint,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Footer: date and address
+            Row(
+              children: [
+                Icon(Icons.schedule, size: 14, color: AppColors.textHint),
+                const SizedBox(width: 4),
+                Text(
+                  _formatDate(ticket.createdAt),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textHint,
+                  ),
+                ),
+                if (ticket.addressLine != null &&
+                    ticket.addressLine!.isNotEmpty) ...[
+                  const SizedBox(width: 16),
+                  Icon(
+                    Icons.location_on_outlined,
+                    size: 14,
+                    color: AppColors.textHint,
+                  ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      ticket.addressLine!,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textHint,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
+
+  Color _statusColor(TicketStatus status) => switch (status) {
+    TicketStatus.draft => AppColors.textHint,
+    TicketStatus.matching => AppColors.info,
+    TicketStatus.awaitingCustomerConfirmation => AppColors.warning,
+    TicketStatus.assigned => AppColors.primary,
+    TicketStatus.providerEnRoute => AppColors.primary,
+    TicketStatus.providerArrived => AppColors.primary,
+    TicketStatus.underInspection => AppColors.primary,
+    TicketStatus.awaitingEstimateApproval => AppColors.warning,
+    TicketStatus.inProgress => AppColors.primary,
+    TicketStatus.completed => AppColors.success,
+    TicketStatus.paid => AppColors.success,
+    TicketStatus.closed => AppColors.textHint,
+    TicketStatus.cancelled => AppColors.error,
+    TicketStatus.failed => AppColors.error,
+  };
+
+  String _statusLabel(TicketStatus status) => switch (status) {
+    TicketStatus.draft => 'Draft',
+    TicketStatus.matching => 'Finding Provider',
+    TicketStatus.awaitingCustomerConfirmation => 'Awaiting Confirmation',
+    TicketStatus.assigned => 'Assigned',
+    TicketStatus.providerEnRoute => 'En Route',
+    TicketStatus.providerArrived => 'Arrived',
+    TicketStatus.underInspection => 'Inspecting',
+    TicketStatus.awaitingEstimateApproval => 'Estimate Sent',
+    TicketStatus.inProgress => 'In Progress',
+    TicketStatus.completed => 'Completed',
+    TicketStatus.paid => 'Paid',
+    TicketStatus.closed => 'Closed',
+    TicketStatus.cancelled => 'Cancelled',
+    TicketStatus.failed => 'Failed',
+  };
+
+  IconData _categoryIcon(ServiceCategory category) => switch (category) {
+    ServiceCategory.plumber => Icons.plumbing,
+    ServiceCategory.electrician => Icons.electrical_services,
+    ServiceCategory.carpenter => Icons.chair_alt,
+    ServiceCategory.unknown => Icons.handyman_rounded,
+  };
+
+  String _categoryLabel(ServiceCategory category) => switch (category) {
+    ServiceCategory.plumber => 'Plumbing',
+    ServiceCategory.electrician => 'Electrical',
+    ServiceCategory.carpenter => 'Carpentry',
+    ServiceCategory.unknown => 'Other',
+  };
+
+  Color _categoryColor(ServiceCategory category) => switch (category) {
+    ServiceCategory.plumber => AppColors.info,
+    ServiceCategory.electrician => AppColors.warning,
+    ServiceCategory.carpenter => const Color(0xFF8B5CF6),
+    ServiceCategory.unknown => AppColors.textSecondary,
+  };
 }
 
 class _ProfileTab extends StatelessWidget {
@@ -809,7 +1151,17 @@ class _ProfileTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? AppColors.error : AppColors.textPrimary;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    final color = isDestructive 
+        ? AppColors.error 
+        : (isDark ? Colors.white : AppColors.textPrimary);
+        
+    final iconColor = isDestructive
+        ? AppColors.error
+        : AppColors.primary;
+
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -821,7 +1173,7 @@ class _ProfileTile extends StatelessWidget {
               .withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: color, size: 20),
+        child: Icon(icon, color: iconColor, size: 20),
       ),
       title: Text(label, style: AppTextStyles.bodyLarge.copyWith(color: color)),
       trailing: Icon(

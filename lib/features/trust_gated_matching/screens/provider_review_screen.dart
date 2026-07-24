@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/models/user_model.dart';
 import '../../../core/routes/route_names.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../auth/services/auth_service.dart';
 import '../services/matching_service.dart';
 
 /// Customer-facing 30-second review screen.
@@ -52,10 +54,13 @@ class _ProviderReviewScreenState extends State<ProviderReviewScreen> {
 
   Future<void> _confirm() async {
     _timer.cancel();
+    final activeProvider = MatchingService.instance.activeProvider;
+    final providerName = activeProvider?.name ?? 'Joshua George';
+    final providerId = activeProvider?.id ?? AppConstants.demoProviderId;
     await MatchingService.instance.confirmProvider(
       ticketId: 'ticket-id-stub',
-      providerId: AppConstants.demoProviderId,
-      providerName: AppConstants.demoProviderName,
+      providerId: providerId,
+      providerName: providerName,
     );
     if (!mounted) return;
     Navigator.of(context).pushReplacementNamed(RouteNames.jobTracking);
@@ -122,20 +127,29 @@ class _ProviderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeProvider = MatchingService.instance.activeProvider;
+    final providerName = activeProvider?.name ?? 'Joshua George';
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          children: const [
+          children: [
             Row(
               children: [
-                CircleAvatar(radius: 28, child: Icon(Icons.person)),
-                SizedBox(width: 12),
+                const CircleAvatar(radius: 28, child: Icon(Icons.person)),
+                const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Rajesh Kumar'),
-                    Row(
+                    Text(
+                      providerName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const Row(
                       children: [
                         Icon(Icons.verified, size: 14, color: Colors.green),
                         SizedBox(width: 4),
@@ -146,8 +160,8 @@ class _ProviderCard extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: 16),
-            Row(
+            const SizedBox(height: 16),
+            const Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _Stat(icon: Icons.star, label: '4.8'),

@@ -1,32 +1,32 @@
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/enums.dart';
+import '../../../core/models/user_model.dart';
 import '../../auth/services/auth_service.dart';
 import '../../geo_broadcast/models/provider_match.dart';
 import '../../service_lifecycle/services/job_service.dart';
 import '../models/candidate_lease.dart';
 
 /// Implements the Trust-Gated Matching flow (Module 6 — core feature).
-///
-/// Backend rules:
-///   • First provider to accept wins an atomic lease.
-///   • Lease auto-expires after `AppConstants.candidateReviewSeconds`.
-///   • Customer must confirm inside the lease window; otherwise matching resumes.
-///   • Exact customer address is only revealed after customer confirms.
 class MatchingService {
   MatchingService._();
   static final MatchingService instance = MatchingService._();
+
+  // Active lease storage (in-memory simulation)
+  CandidateLease? _activeLease;
+  AppUser? _activeProvider;
+
+  CandidateLease? get activeLease => _activeLease;
+  AppUser? get activeProvider => _activeProvider;
 
   /// Provider taps Accept: request an atomic lease.
   Future<CandidateLease?> acceptOpportunity({
     required String ticketId,
     required String providerId,
+    AppUser? provider,
   }) async {
-    // TODO: Cloud Function / Firestore transaction that:
-    //   • Ensures ticket status == matching
-    //   • Ensures no active lease exists
-    //   • Writes lease doc with TTL
     final now = DateTime.now();
-    return CandidateLease(
+    _activeProvider = provider;
+    _activeLease = CandidateLease(
       ticketId: ticketId,
       providerId: providerId,
       leasedAt: now,
@@ -34,6 +34,7 @@ class MatchingService {
         const Duration(seconds: AppConstants.candidateReviewSeconds),
       ),
     );
+    return _activeLease;
   }
 
   /// Customer confirms → provider is officially assigned + exact address
@@ -46,16 +47,22 @@ class MatchingService {
     String? customerName,
     ServiceCategory? category,
   }) async {
-    // TODO: transaction — assign provider, transition ticket status, share address.
     final customer = await AuthService.instance.currentUser();
+    final pName = providerName ?? _activeProvider?.name ?? 'Joshua George';
+    final pId = providerId.isNotEmpty && providerId != AppConstants.demoProviderId
+        ? providerId
+        : (_activeProvider?.id ?? AppConstants.demoProviderId);
+
     await JobService.instance.createJob(
       ticketId: ticketId,
-      providerId: providerId,
-      providerName: providerName ?? 'Your provider',
+      providerId: pId,
+      providerName: pName,
       customerId: customer?.id ?? 'demo-customer',
-      customerName: customerName ?? customer?.name ?? 'Customer',
+      customerName: customerName ?? customer?.name ?? 'Sovin Somy',
       category: category ?? ServiceCategory.plumber,
     );
+    _activeLease = null;
+    _activeProvider = null;
   }
 
   /// Customer rejects OR timer expires → clear lease, resume broadcast.
@@ -63,10 +70,25 @@ class MatchingService {
     required String ticketId,
     required String providerId,
   }) async {
-    // TODO: clear lease, resume broadcast (Module 5).
+    _activeLease = null;
+    _activeProvider = null;
   }
 
   Stream<ProviderCandidate?> watchPendingCandidate(String ticketId) async* {
-    // TODO: Firestore stream — emit the current pending candidate profile, or null.
+    if (_activeProvider != null) {
+      yield ProviderCandidate(
+        providerId: _activeProvider!.id,
+        displayName: _activeProvider!.name ?? 'Joshua George',
+        category: ServiceCategory.plumber,
+        distanceKm: 1.2,
+        etaMinutes: 8,
+        ratingAverage: 4.8,
+        completedJobs: 132,
+        verified: true,
+        location: const GeoPoint(0, 0),
+      );
+    } else {
+      yield null;
+    }
   }
 }
