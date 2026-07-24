@@ -37,7 +37,8 @@ class Ticket {
   });
 
   /// Whether this ticket is still "live" (not yet finished or cancelled).
-  bool get isActive => status != TicketStatus.completed &&
+  bool get isActive =>
+      status != TicketStatus.completed &&
       status != TicketStatus.paid &&
       status != TicketStatus.closed &&
       status != TicketStatus.cancelled &&
@@ -114,14 +115,12 @@ class Ticket {
           ? GeoPoint(exactLoc.latitude, exactLoc.longitude)
           : null,
       addressLine: map['addressLine'] as String?,
-      status: TicketStatus.values.byName(
-        map['status'] as String? ?? 'draft',
-      ),
+      status: TicketStatus.values.byName(map['status'] as String? ?? 'draft'),
       assignedProviderId: map['assignedProviderId'] as String?,
       createdAt: map['createdAt'] is fs.Timestamp
           ? (map['createdAt'] as fs.Timestamp).toDate()
           : DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
-              DateTime.now(),
+                DateTime.now(),
       updatedAt: map['updatedAt'] is fs.Timestamp
           ? (map['updatedAt'] as fs.Timestamp).toDate()
           : null,

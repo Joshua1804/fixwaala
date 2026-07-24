@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_durations.dart';
+import '../theme/app_radii.dart';
 import '../theme/app_text_styles.dart';
+import '../utils/motion.dart';
 
 /// Premium primary button with gradient support and press animation.
 class PrimaryButton extends StatefulWidget {
@@ -40,7 +43,7 @@ class _PrimaryButtonState extends State<PrimaryButton>
     super.initState();
     _scaleController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 100),
+      duration: AppDurations.pressScale,
     );
     _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
       CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
@@ -53,9 +56,17 @@ class _PrimaryButtonState extends State<PrimaryButton>
     super.dispose();
   }
 
-  void _onTapDown(TapDownDetails _) => _scaleController.forward();
-  void _onTapUp(TapUpDetails _) => _scaleController.reverse();
-  void _onTapCancel() => _scaleController.reverse();
+  void _onTapDown(TapDownDetails _) {
+    if (!prefersReducedMotion) _scaleController.forward();
+  }
+
+  void _onTapUp(TapUpDetails _) {
+    if (!prefersReducedMotion) _scaleController.reverse();
+  }
+
+  void _onTapCancel() {
+    if (!prefersReducedMotion) _scaleController.reverse();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +139,7 @@ class _PrimaryButtonState extends State<PrimaryButton>
             color: widget.onPressed == null || widget.loading
                 ? AppColors.textHint.withValues(alpha: 0.3)
                 : null,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadii.button),
             boxShadow: widget.onPressed != null && !widget.loading
                 ? [
                     BoxShadow(

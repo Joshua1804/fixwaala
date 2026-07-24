@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
+import '../../../core/widgets/service_category_ui.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../payment/services/payment_service.dart';
 import '../models/job_model.dart';
@@ -58,7 +59,7 @@ class JobDetailsScreen extends StatelessWidget {
                                   style: AppTextStyles.titleMedium,
                                 ),
                                 Text(
-                                  _categoryLabel(job.category),
+                                  ServiceCategoryUi.label(job.category),
                                   style: AppTextStyles.bodySmall.copyWith(
                                     color: AppColors.textSecondary,
                                   ),
@@ -172,11 +173,4 @@ class JobDetailsScreen extends StatelessWidget {
       ),
     );
   }
-
-  String _categoryLabel(ServiceCategory c) => switch (c) {
-    ServiceCategory.plumber => 'Plumbing',
-    ServiceCategory.electrician => 'Electrical',
-    ServiceCategory.carpenter => 'Carpentry',
-    ServiceCategory.unknown => 'Other',
-  };
 }

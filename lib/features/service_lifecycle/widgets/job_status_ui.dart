@@ -197,8 +197,8 @@ class _StepRow extends StatelessWidget {
                   color: state == _StepState.upcoming
                       ? AppColors.textHint
                       : (Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : AppColors.textPrimary),
+                            ? Colors.white
+                            : AppColors.textPrimary),
                 ),
               ),
             ),

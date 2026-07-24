@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
-import '../../../core/models/user_model.dart';
 import '../../../core/routes/route_names.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
-import '../../auth/services/auth_service.dart';
 import '../services/matching_service.dart';
 
 /// Customer-facing 30-second review screen.
@@ -151,7 +150,11 @@ class _ProviderCard extends StatelessWidget {
                     ),
                     const Row(
                       children: [
-                        Icon(Icons.verified, size: 14, color: Colors.green),
+                        Icon(
+                          Icons.verified,
+                          size: 14,
+                          color: AppColors.success,
+                        ),
                         SizedBox(width: 4),
                         Text('Aadhaar + Selfie verified'),
                       ],

@@ -6,6 +6,7 @@ import '../constants/app_constants.dart';
 import '../constants/app_strings.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../utils/motion.dart';
 
 /// Animated splash screen with gradient background, fade-in logo,
 /// and smooth transition to role selection.
@@ -54,7 +55,7 @@ class _SplashScreenState extends State<SplashScreen>
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
+    );
     _pulse = Tween<double>(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
@@ -63,9 +64,17 @@ class _SplashScreenState extends State<SplashScreen>
     _gradientController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
-    )..repeat(reverse: true);
+    );
 
-    _fadeController.forward();
+    if (prefersReducedMotion) {
+      _pulseController.value = 1.0;
+      _gradientController.value = 0.5;
+      _fadeController.value = 1.0;
+    } else {
+      _pulseController.repeat(reverse: true);
+      _gradientController.repeat(reverse: true);
+      _fadeController.forward();
+    }
     _bootstrap();
   }
 
@@ -102,10 +111,10 @@ class _SplashScreenState extends State<SplashScreen>
                   begin: Alignment(-(1.0 - t), -1),
                   end: Alignment(1.0 - t, 1),
                   colors: const [
-                    Color(0xFF042E24),
+                    Color(0xFF07130D),
                     AppColors.primaryDark,
                     AppColors.primary,
-                    AppColors.primaryLight,
+                    AppColors.primaryHover,
                   ],
                   stops: const [0.0, 0.3, 0.6, 1.0],
                 ),

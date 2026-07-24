@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/user_model.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../auth/services/auth_service.dart';
 import '../services/report_service.dart';
@@ -32,7 +33,7 @@ class _SosScreenState extends State<SosScreen> {
     final jobId = ModalRoute.of(context)?.settings.arguments as String?;
     return Scaffold(
       appBar: AppBar(title: const Text('Emergency (SOS)')),
-      backgroundColor: Colors.red.shade50,
+      backgroundColor: AppColors.error.withValues(alpha: 0.08),
       body: FutureBuilder<AppUser?>(
         future: AuthService.instance.currentUser(),
         builder: (context, snapshot) {
@@ -45,7 +46,7 @@ class _SosScreenState extends State<SosScreen> {
                 Icon(
                   _raised ? Icons.check_circle : Icons.warning,
                   size: 72,
-                  color: _raised ? Colors.green : Colors.red,
+                  color: _raised ? AppColors.success : AppColors.error,
                 ),
                 const SizedBox(height: 16),
                 Text(

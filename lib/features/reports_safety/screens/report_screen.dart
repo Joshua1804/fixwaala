@@ -4,6 +4,7 @@ import '../../../core/models/enums.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/widgets/loading_widget.dart';
 import '../../auth/services/auth_service.dart';
 import '../services/report_service.dart';
 
@@ -94,7 +95,7 @@ class _ReportScreenState extends State<ReportScreen> {
         future: AuthService.instance.currentUser(),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingWidget();
           }
           final me = snapshot.data;
           return Padding(

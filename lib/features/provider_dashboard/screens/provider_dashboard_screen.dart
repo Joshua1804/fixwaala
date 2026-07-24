@@ -36,7 +36,7 @@ class ProviderDashboardScreen extends StatelessWidget {
                 return _EmptyDashboard();
               }
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                 children: [
                   GridView.count(
                     shrinkWrap: true,

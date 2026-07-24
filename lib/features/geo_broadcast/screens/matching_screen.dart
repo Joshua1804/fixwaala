@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/routes/route_names.dart';
+import '../../../core/widgets/loading_widget.dart';
 
 class MatchingScreen extends StatelessWidget {
   const MatchingScreen({super.key});
@@ -14,12 +15,7 @@ class MatchingScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Searching nearby providers',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            const LoadingWidget(label: 'Searching nearby providers'),
             const SizedBox(height: 8),
             const Text(
               'We expand the radius from 5 km → 10 km → 15 km until we find someone.',

@@ -6,7 +6,9 @@ import '../../../core/routes/route_names.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/widgets/empty_state_widget.dart';
 import '../../../core/widgets/loading_widget.dart';
+import '../../../core/widgets/service_category_ui.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/services/auth_service.dart';
 import '../models/job_model.dart';
@@ -59,35 +61,11 @@ class _NoActiveJobEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.assignment_late_rounded,
-              size: 64,
-              color: AppColors.textHint.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No active job right now',
-              style: AppTextStyles.titleMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Once a provider confirms your request, you can track them here.',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textHint,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return const EmptyStateWidget(
+      icon: Icons.assignment_late_rounded,
+      title: 'No active job right now',
+      subtitle:
+          'Once a provider confirms your request, you can track them here.',
     );
   }
 }
@@ -215,7 +193,7 @@ class _ProviderCard extends StatelessWidget {
                   Text(job.providerName, style: AppTextStyles.titleMedium),
                   const SizedBox(height: 4),
                   Text(
-                    _categoryLabel(job.category),
+                    ServiceCategoryUi.label(job.category),
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -233,13 +211,6 @@ class _ProviderCard extends StatelessWidget {
       ),
     );
   }
-
-  String _categoryLabel(ServiceCategory c) => switch (c) {
-    ServiceCategory.plumber => 'Plumbing',
-    ServiceCategory.electrician => 'Electrical',
-    ServiceCategory.carpenter => 'Carpentry',
-    ServiceCategory.unknown => 'Other',
-  };
 }
 
 /// The single primary button the customer needs at this moment, if any.

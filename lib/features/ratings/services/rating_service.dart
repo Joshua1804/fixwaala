@@ -1,6 +1,11 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart'
+    show CollectionReference, FirebaseException;
 import 'package:flutter/foundation.dart';
 
 import '../../../core/models/enums.dart';
+import '../../../core/services/firebase_service.dart';
 import '../../admin_panel/services/account_service.dart';
 import '../../service_lifecycle/services/job_service.dart';
 import '../models/rating_model.dart';
@@ -16,12 +21,50 @@ class DuplicateRatingException implements Exception {
 /// Ratings & Reputation (Module 9).
 ///
 /// Enforces one rating per (job, rater) pair and exposes the aggregates
-/// the Provider Dashboard and Trust Score rely on.
+/// the Provider Dashboard and Trust Score rely on. Ratings are cached
+/// in-memory for synchronous aggregate lookups and mirrored to the
+/// `ratings` Firestore collection when configured, so reputation survives
+/// a reload.
 class RatingService {
   RatingService._();
   static final RatingService instance = RatingService._();
 
   final List<Rating> _ratings = [];
+  StreamSubscription? _liveSub;
+
+  bool get _live => FirebaseService.instance.isInitialized;
+  CollectionReference<Map<String, dynamic>> get _col =>
+      FirebaseService.instance.firestore.collection('ratings');
+
+  /// Opens the live Firestore sync. Call once at app startup. No-op in
+  /// simulation mode.
+  Future<void> initialize() async {
+    if (!_live) return;
+    await _liveSub?.cancel();
+    _liveSub = _col.snapshots().listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        final rating = Rating.fromMap(change.doc.data()!);
+        _ratings.removeWhere((r) => r.id == rating.id);
+        _ratings.add(rating);
+      }
+    });
+  }
+
+  Future<void> _persist(Rating rating) async {
+    if (!_live) return;
+    try {
+      await _col.doc(rating.id).set(rating.toMap());
+    } on FirebaseException catch (e) {
+      if (kDebugMode && e.code == 'permission-denied') {
+        debugPrint(
+          '[RatingService] Firestore denied rating write; continuing in '
+          'local cache only. Update Firestore rules before release.',
+        );
+        return;
+      }
+      rethrow;
+    }
+  }
 
   @visibleForTesting
   void resetForTesting() => _ratings.clear();
@@ -62,6 +105,7 @@ class RatingService {
       createdAt: DateTime.now(),
     );
     _ratings.add(rating);
+    unawaited(_persist(rating));
 
     await JobService.instance.markRated(jobId, direction: direction);
     return rating;

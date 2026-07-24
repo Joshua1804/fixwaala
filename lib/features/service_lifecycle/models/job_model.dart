@@ -1,4 +1,17 @@
+import 'package:cloud_firestore/cloud_firestore.dart' as fs;
+
 import '../../../core/models/enums.dart';
+
+DateTime _dateFromAny(dynamic value) {
+  if (value is fs.Timestamp) return value.toDate();
+  if (value is DateTime) return value;
+  return DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
+}
+
+DateTime? _dateFromAnyOrNull(dynamic value) {
+  if (value == null) return null;
+  return _dateFromAny(value);
+}
 
 /// A provider-submitted diagnosis + cost breakdown for a repair.
 class RepairEstimate {
@@ -17,6 +30,22 @@ class RepairEstimate {
   });
 
   double get total => laborCharge + partsCharge;
+
+  Map<String, dynamic> toMap() => {
+    'diagnosis': diagnosis,
+    'laborCharge': laborCharge,
+    'partsCharge': partsCharge,
+    'notes': notes,
+    'submittedAt': fs.Timestamp.fromDate(submittedAt),
+  };
+
+  factory RepairEstimate.fromMap(Map<String, dynamic> map) => RepairEstimate(
+    diagnosis: map['diagnosis'] as String? ?? '',
+    laborCharge: (map['laborCharge'] as num?)?.toDouble() ?? 0,
+    partsCharge: (map['partsCharge'] as num?)?.toDouble() ?? 0,
+    notes: map['notes'] as String? ?? '',
+    submittedAt: _dateFromAny(map['submittedAt']),
+  );
 }
 
 /// A single timestamped entry in a job's status history.
@@ -28,6 +57,17 @@ class JobEventLogEntry {
   final DateTime timestamp;
 
   const JobEventLogEntry(this.event, this.timestamp);
+
+  Map<String, dynamic> toMap() => {
+    'event': event.name,
+    'timestamp': fs.Timestamp.fromDate(timestamp),
+  };
+
+  factory JobEventLogEntry.fromMap(Map<String, dynamic> map) =>
+      JobEventLogEntry(
+        JobEvent.values.byName(map['event'] as String),
+        _dateFromAny(map['timestamp']),
+      );
 }
 
 /// The full lifecycle record of a confirmed service job (Module 7).
@@ -133,6 +173,68 @@ class Job {
       closedAt: closedAt ?? this.closedAt,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+    'jobId': jobId,
+    'ticketId': ticketId,
+    'providerId': providerId,
+    'providerName': providerName,
+    'customerId': customerId,
+    'customerName': customerName,
+    'category': category.name,
+    'status': status.name,
+    if (estimate != null) 'estimate': estimate!.toMap(),
+    if (estimateRejectionReason != null)
+      'estimateRejectionReason': estimateRejectionReason,
+    if (cancellationReason != null) 'cancellationReason': cancellationReason,
+    'history': history.map((e) => e.toMap()).toList(),
+    'hasOpenReport': hasOpenReport,
+    'hasSafetyAlert': hasSafetyAlert,
+    'paid': paid,
+    if (paymentId != null) 'paymentId': paymentId,
+    'customerRated': customerRated,
+    'providerRated': providerRated,
+    'createdAt': fs.Timestamp.fromDate(createdAt),
+    if (acceptedAt != null) 'acceptedAt': fs.Timestamp.fromDate(acceptedAt!),
+    if (enRouteAt != null) 'enRouteAt': fs.Timestamp.fromDate(enRouteAt!),
+    if (arrivedAt != null) 'arrivedAt': fs.Timestamp.fromDate(arrivedAt!),
+    if (completedAt != null)
+      'completedAt': fs.Timestamp.fromDate(completedAt!),
+    if (closedAt != null) 'closedAt': fs.Timestamp.fromDate(closedAt!),
+  };
+
+  factory Job.fromMap(Map<String, dynamic> map) => Job(
+    jobId: map['jobId'] as String,
+    ticketId: map['ticketId'] as String? ?? '',
+    providerId: map['providerId'] as String? ?? '',
+    providerName: map['providerName'] as String? ?? '',
+    customerId: map['customerId'] as String? ?? '',
+    customerName: map['customerName'] as String? ?? '',
+    category: ServiceCategory.values.byName(
+      map['category'] as String? ?? 'unknown',
+    ),
+    status: JobStatus.values.byName(map['status'] as String? ?? 'assigned'),
+    estimate: map['estimate'] != null
+        ? RepairEstimate.fromMap(Map<String, dynamic>.from(map['estimate']))
+        : null,
+    estimateRejectionReason: map['estimateRejectionReason'] as String?,
+    cancellationReason: map['cancellationReason'] as String?,
+    history: (map['history'] as List<dynamic>? ?? [])
+        .map((e) => JobEventLogEntry.fromMap(Map<String, dynamic>.from(e)))
+        .toList(),
+    hasOpenReport: map['hasOpenReport'] as bool? ?? false,
+    hasSafetyAlert: map['hasSafetyAlert'] as bool? ?? false,
+    paid: map['paid'] as bool? ?? false,
+    paymentId: map['paymentId'] as String?,
+    customerRated: map['customerRated'] as bool? ?? false,
+    providerRated: map['providerRated'] as bool? ?? false,
+    createdAt: _dateFromAny(map['createdAt']),
+    acceptedAt: _dateFromAnyOrNull(map['acceptedAt']),
+    enRouteAt: _dateFromAnyOrNull(map['enRouteAt']),
+    arrivedAt: _dateFromAnyOrNull(map['arrivedAt']),
+    completedAt: _dateFromAnyOrNull(map['completedAt']),
+    closedAt: _dateFromAnyOrNull(map['closedAt']),
+  );
 
   /// Time between the job being assigned and the provider accepting it.
   Duration? get responseTime => acceptedAt?.difference(createdAt);
