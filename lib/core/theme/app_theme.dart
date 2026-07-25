@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
+import 'app_radii.dart';
 import 'app_text_styles.dart';
 
 class AppTheme {
@@ -14,8 +15,8 @@ class AppTheme {
       brightness: Brightness.light,
       primary: AppColors.primary,
       onPrimary: Colors.white,
-      secondary: AppColors.accent,
-      onSecondary: Colors.white,
+      secondary: AppColors.secondary,
+      onSecondary: AppColors.textPrimary,
       surface: AppColors.surface,
       onSurface: AppColors.textPrimary,
       error: AppColors.error,
@@ -25,7 +26,6 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.background,
-      fontFamily: 'Inter',
 
       // ── AppBar ──────────────────────────────────────────────────
       appBarTheme: AppBarTheme(
@@ -41,13 +41,15 @@ class AppTheme {
       ),
 
       // ── Cards ───────────────────────────────────────────────────
+      // Pure white is reserved for search fields/dialogs/bottom sheets;
+      // general content cards use the warm off-white `card` surface.
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadii.card),
           side: BorderSide(color: AppColors.divider.withValues(alpha: 0.5)),
         ),
-        color: AppColors.surface,
+        color: AppColors.card,
         margin: const EdgeInsets.symmetric(vertical: 4),
       ),
 
@@ -58,7 +60,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadii.button),
           ),
           textStyle: AppTextStyles.buttonText,
           elevation: 0,
@@ -69,7 +71,7 @@ class AppTheme {
           foregroundColor: AppColors.primary,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadii.button),
           ),
           side: const BorderSide(color: AppColors.primary, width: 1.5),
           textStyle: AppTextStyles.buttonText,
@@ -91,19 +93,19 @@ class AppTheme {
           vertical: 16,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.input),
           borderSide: BorderSide(color: AppColors.divider),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.input),
           borderSide: BorderSide(color: AppColors.divider),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.input),
           borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.input),
           borderSide: const BorderSide(color: AppColors.error),
         ),
         labelStyle: AppTextStyles.bodyMedium.copyWith(
@@ -214,8 +216,8 @@ class AppTheme {
       brightness: Brightness.dark,
       primary: AppColors.primaryLight,
       onPrimary: Colors.white,
-      secondary: AppColors.accent,
-      onSecondary: Colors.black,
+      secondary: AppColors.secondary,
+      onSecondary: AppColors.textPrimary,
       surface: AppColors.surfaceDark,
       onSurface: Colors.white,
       error: AppColors.error,
@@ -225,7 +227,6 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.scaffoldDark,
-      fontFamily: 'Inter',
 
       appBarTheme: AppBarTheme(
         centerTitle: true,
@@ -240,7 +241,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadii.card),
           side: BorderSide(color: AppColors.glassBorderDark),
         ),
         color: AppColors.cardDark,
@@ -253,7 +254,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadii.button),
           ),
           textStyle: AppTextStyles.buttonText,
           elevation: 0,
@@ -264,7 +265,7 @@ class AppTheme {
           foregroundColor: AppColors.primaryLight,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadii.button),
           ),
           side: const BorderSide(color: AppColors.primaryLight, width: 1.5),
           textStyle: AppTextStyles.buttonText,
@@ -285,22 +286,22 @@ class AppTheme {
           vertical: 16,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.input),
           borderSide: BorderSide(color: AppColors.glassBorderDark),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.input),
           borderSide: BorderSide(color: AppColors.glassBorderDark),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.input),
           borderSide: const BorderSide(
             color: AppColors.primaryLight,
             width: 1.5,
           ),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.input),
           borderSide: const BorderSide(color: AppColors.error),
         ),
         labelStyle: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),

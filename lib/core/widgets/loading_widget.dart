@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_durations.dart';
 import '../theme/app_text_styles.dart';
+import '../utils/motion.dart';
 
 /// Premium loading widget with a pulsing branded icon and shimmer variant.
 class LoadingWidget extends StatefulWidget {
@@ -23,12 +25,17 @@ class _LoadingWidgetState extends State<LoadingWidget>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
+      duration: AppDurations.loadingPulse,
+    );
     _pulse = Tween<double>(
       begin: 0.85,
       end: 1.15,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    if (prefersReducedMotion) {
+      _controller.value = 0.5;
+    } else {
+      _controller.repeat(reverse: true);
+    }
   }
 
   @override
@@ -110,8 +117,13 @@ class _ShimmerPlaceholderState extends State<ShimmerPlaceholder>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat();
+      duration: AppDurations.shimmerSweep,
+    );
+    if (prefersReducedMotion) {
+      _controller.value = 0.5;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override

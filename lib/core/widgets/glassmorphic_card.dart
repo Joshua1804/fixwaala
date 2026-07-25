@@ -20,7 +20,7 @@ class GlassmorphicCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(20),
     this.borderRadius = 20,
-    this.blur = 12,
+    this.blur = 8,
     this.fillColor,
     this.borderColor,
   });

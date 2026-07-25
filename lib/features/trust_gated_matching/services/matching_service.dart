@@ -2,6 +2,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/user_model.dart';
 import '../../auth/services/auth_service.dart';
+import '../../customer_ticket/services/ticket_service.dart';
 import '../../geo_broadcast/models/provider_match.dart';
 import '../../service_lifecycle/services/job_service.dart';
 import '../models/candidate_lease.dart';
@@ -49,7 +50,8 @@ class MatchingService {
   }) async {
     final customer = await AuthService.instance.currentUser();
     final pName = providerName ?? _activeProvider?.name ?? 'Joshua George';
-    final pId = providerId.isNotEmpty && providerId != AppConstants.demoProviderId
+    final pId =
+        providerId.isNotEmpty && providerId != AppConstants.demoProviderId
         ? providerId
         : (_activeProvider?.id ?? AppConstants.demoProviderId);
 
@@ -61,6 +63,7 @@ class MatchingService {
       customerName: customerName ?? customer?.name ?? 'Sovin Somy',
       category: category ?? ServiceCategory.plumber,
     );
+    await TicketService.instance.updateStatus(ticketId, TicketStatus.assigned);
     _activeLease = null;
     _activeProvider = null;
   }

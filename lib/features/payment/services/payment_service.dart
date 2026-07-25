@@ -1,6 +1,11 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart'
+    show CollectionReference, FirebaseException;
 import 'package:flutter/foundation.dart';
 
 import '../../../core/models/enums.dart';
+import '../../../core/services/firebase_service.dart';
 import '../../admin_panel/services/account_service.dart';
 import '../../service_lifecycle/services/job_service.dart';
 import '../models/payment_model.dart';
@@ -10,12 +15,48 @@ import '../models/payment_model.dart';
 /// A payment always resolves to either [PaymentStatus.success] or
 /// [PaymentStatus.failed] in a controlled way (via [forceFailure]) so the
 /// failure/retry path can be demonstrated deliberately rather than relying
-/// on chance.
+/// on chance. Records are cached in-memory (so earnings lookups stay
+/// synchronous) and mirrored to the `payments` Firestore collection when
+/// configured, so earnings survive a reload.
 class PaymentService {
   PaymentService._();
   static final PaymentService instance = PaymentService._();
 
-  final Map<String, PaymentRecord> _records = {};
+  final Map<String, PaymentRecord> _records = {}; // jobId -> record
+  StreamSubscription? _liveSub;
+
+  bool get _live => FirebaseService.instance.isInitialized;
+  CollectionReference<Map<String, dynamic>> get _col =>
+      FirebaseService.instance.firestore.collection('payments');
+
+  /// Opens the live Firestore sync. Call once at app startup. No-op in
+  /// simulation mode.
+  Future<void> initialize() async {
+    if (!_live) return;
+    await _liveSub?.cancel();
+    _liveSub = _col.snapshots().listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        final record = PaymentRecord.fromMap(change.doc.data()!);
+        _records[record.jobId] = record;
+      }
+    });
+  }
+
+  Future<void> _persist(PaymentRecord record) async {
+    if (!_live) return;
+    try {
+      await _col.doc(record.jobId).set(record.toMap());
+    } on FirebaseException catch (e) {
+      if (kDebugMode && e.code == 'permission-denied') {
+        debugPrint(
+          '[PaymentService] Firestore denied payment write; continuing in '
+          'local cache only. Update Firestore rules before release.',
+        );
+        return;
+      }
+      rethrow;
+    }
+  }
 
   @visibleForTesting
   void resetForTesting() => _records.clear();
@@ -52,6 +93,7 @@ class PaymentService {
       processedAt: now,
     );
     _records[jobId] = record;
+    unawaited(_persist(record));
 
     if (record.status == PaymentStatus.success) {
       await JobService.instance.markPaid(jobId, record.id);

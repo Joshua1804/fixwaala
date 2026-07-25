@@ -88,9 +88,11 @@ class TicketService {
 
   Stream<Ticket> watchTicket(String ticketId) {
     if (_live) {
-      return _col.doc(ticketId).snapshots().where((s) => s.exists).map(
-        (snap) => Ticket.fromMap(snap.data()!),
-      );
+      return _col
+          .doc(ticketId)
+          .snapshots()
+          .where((s) => s.exists)
+          .map((snap) => Ticket.fromMap(snap.data()!));
     } else {
       // Emit current value once.
       return Stream.value(_memStore[ticketId]!);
@@ -108,10 +110,9 @@ class TicketService {
           .get();
       return snap.docs.map((d) => Ticket.fromMap(d.data())).toList();
     } else {
-      final list = _memStore.values
-          .where((t) => t.customerId == customerId)
-          .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final list =
+          _memStore.values.where((t) => t.customerId == customerId).toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return list;
     }
   }
@@ -140,10 +141,9 @@ class TicketService {
           );
     } else {
       // Emit current snapshot once.
-      final list = _memStore.values
-          .where((t) => t.customerId == customerId)
-          .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final list =
+          _memStore.values.where((t) => t.customerId == customerId).toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return Stream.value(list);
     }
   }
@@ -159,10 +159,11 @@ class TicketService {
             (snap) => snap.docs.map((d) => Ticket.fromMap(d.data())).toList(),
           );
     } else {
-      final list = _memStore.values
-          .where((t) => t.status == TicketStatus.matching)
-          .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final list =
+          _memStore.values
+              .where((t) => t.status == TicketStatus.matching)
+              .toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return Stream.value(list);
     }
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/routes/route_names.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../services/verification_service.dart';
 
@@ -46,7 +47,7 @@ class _SelfieCaptureScreenState extends State<SelfieCaptureScreen> {
               aspectRatio: 3 / 4,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black12,
+                  color: AppColors.divider.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: _localPath == null
@@ -55,7 +56,7 @@ class _SelfieCaptureScreenState extends State<SelfieCaptureScreen> {
                         child: Icon(
                           Icons.check_circle,
                           size: 64,
-                          color: Colors.green,
+                          color: AppColors.success,
                         ),
                       ),
               ),

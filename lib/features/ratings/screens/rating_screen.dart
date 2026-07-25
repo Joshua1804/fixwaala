@@ -6,6 +6,7 @@ import '../../../core/routes/route_names.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/widgets/loading_widget.dart';
 import '../../auth/services/auth_service.dart';
 import '../services/rating_service.dart';
 
@@ -69,7 +70,7 @@ class _RatingScreenState extends State<RatingScreen> {
         future: AuthService.instance.currentUser(),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingWidget();
           }
           final me = snapshot.data;
           if (me == null || jobId == null) {
@@ -132,7 +133,7 @@ class _RatingScreenState extends State<RatingScreen> {
                         i < _stars
                             ? Icons.star_rounded
                             : Icons.star_border_rounded,
-                        color: Colors.amber,
+                        color: AppColors.accent,
                       ),
                     ),
                   ),

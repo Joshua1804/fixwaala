@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/models/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/routes/route_names.dart';
+import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/widgets/loading_widget.dart';
+import '../../../core/widgets/service_category_ui.dart';
 import '../../auth/services/auth_service.dart';
+import '../../service_lifecycle/services/job_service.dart';
 import '../models/ticket_model.dart';
 import '../services/ticket_service.dart';
+import '../widgets/ticket_status_ui.dart';
 
 /// Full-page "My Tickets" accessible from the Tickets tab → "See all".
 /// Provides the same Active / History tabs as the embedded tab, but as a
@@ -55,7 +59,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen>
         builder: (context, snapshot) {
           final customerId = snapshot.data?.id;
           if (customerId == null) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingWidget();
           }
           return TabBarView(
             controller: _tabController,
@@ -73,10 +77,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen>
 class _TicketListView extends StatelessWidget {
   final String customerId;
   final bool showActive;
-  const _TicketListView({
-    required this.customerId,
-    required this.showActive,
-  });
+  const _TicketListView({required this.customerId, required this.showActive});
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +85,7 @@ class _TicketListView extends StatelessWidget {
       stream: TicketService.instance.watchMyTickets(customerId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const LoadingWidget();
         }
 
         final all = snapshot.data ?? [];
@@ -93,37 +94,14 @@ class _TicketListView extends StatelessWidget {
             : all.where((t) => !t.isActive).toList();
 
         if (filtered.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(40),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    showActive
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.history_rounded,
-                    size: 64,
-                    color: AppColors.textHint.withValues(alpha: 0.3),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    showActive ? 'No active requests' : 'No past requests',
-                    style: AppTextStyles.headlineSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    showActive
-                        ? 'New service requests will appear here'
-                        : 'Completed and cancelled requests will appear here',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textHint,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          return EmptyStateWidget(
+            icon: showActive
+                ? Icons.check_circle_outline_rounded
+                : Icons.history_rounded,
+            title: showActive ? 'No active requests' : 'No past requests',
+            subtitle: showActive
+                ? 'New service requests will appear here'
+                : 'Completed and cancelled requests will appear here',
           );
         }
 
@@ -147,14 +125,22 @@ class _TicketHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final statusColor = _statusColor(ticket.status);
+    final statusColor = TicketStatusUi.color(ticket.status);
 
     return GestureDetector(
       onTap: () {
-        Navigator.of(context).pushNamed(
-          RouteNames.jobTracking,
-          arguments: {'ticketId': ticket.id},
-        );
+        final job = JobService.instance.jobForTicket(ticket.id);
+        if (job != null) {
+          Navigator.of(
+            context,
+          ).pushNamed(RouteNames.jobTracking, arguments: job.jobId);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Still finding a provider for this request.'),
+            ),
+          );
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -186,13 +172,12 @@ class _TicketHistoryCard extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: _categoryColor(ticket.category)
-                        .withValues(alpha: 0.12),
+                    color: ServiceCategoryUi.iconBg(),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    _categoryIcon(ticket.category),
-                    color: _categoryColor(ticket.category),
+                    ServiceCategoryUi.icon(ticket.category),
+                    color: ServiceCategoryUi.iconFg(),
                     size: 20,
                   ),
                 ),
@@ -202,7 +187,7 @@ class _TicketHistoryCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _categoryLabel(ticket.category),
+                        ServiceCategoryUi.label(ticket.category),
                         style: AppTextStyles.titleMedium,
                       ),
                       const SizedBox(height: 2),
@@ -227,7 +212,7 @@ class _TicketHistoryCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    _statusLabel(ticket.status),
+                    TicketStatusUi.label(ticket.status),
                     style: AppTextStyles.labelSmall.copyWith(
                       color: statusColor,
                       fontWeight: FontWeight.w600,
@@ -283,59 +268,4 @@ class _TicketHistoryCard extends StatelessWidget {
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${dt.day}/${dt.month}/${dt.year}';
   }
-
-  Color _statusColor(TicketStatus status) => switch (status) {
-    TicketStatus.draft => AppColors.textHint,
-    TicketStatus.matching => AppColors.info,
-    TicketStatus.awaitingCustomerConfirmation => AppColors.warning,
-    TicketStatus.assigned => AppColors.primary,
-    TicketStatus.providerEnRoute => AppColors.primary,
-    TicketStatus.providerArrived => AppColors.primary,
-    TicketStatus.underInspection => AppColors.primary,
-    TicketStatus.awaitingEstimateApproval => AppColors.warning,
-    TicketStatus.inProgress => AppColors.primary,
-    TicketStatus.completed => AppColors.success,
-    TicketStatus.paid => AppColors.success,
-    TicketStatus.closed => AppColors.textHint,
-    TicketStatus.cancelled => AppColors.error,
-    TicketStatus.failed => AppColors.error,
-  };
-
-  String _statusLabel(TicketStatus status) => switch (status) {
-    TicketStatus.draft => 'Draft',
-    TicketStatus.matching => 'Finding Provider',
-    TicketStatus.awaitingCustomerConfirmation => 'Awaiting Confirmation',
-    TicketStatus.assigned => 'Assigned',
-    TicketStatus.providerEnRoute => 'En Route',
-    TicketStatus.providerArrived => 'Arrived',
-    TicketStatus.underInspection => 'Inspecting',
-    TicketStatus.awaitingEstimateApproval => 'Estimate Sent',
-    TicketStatus.inProgress => 'In Progress',
-    TicketStatus.completed => 'Completed',
-    TicketStatus.paid => 'Paid',
-    TicketStatus.closed => 'Closed',
-    TicketStatus.cancelled => 'Cancelled',
-    TicketStatus.failed => 'Failed',
-  };
-
-  IconData _categoryIcon(ServiceCategory category) => switch (category) {
-    ServiceCategory.plumber => Icons.plumbing,
-    ServiceCategory.electrician => Icons.electrical_services,
-    ServiceCategory.carpenter => Icons.chair_alt,
-    ServiceCategory.unknown => Icons.handyman_rounded,
-  };
-
-  String _categoryLabel(ServiceCategory category) => switch (category) {
-    ServiceCategory.plumber => 'Plumbing',
-    ServiceCategory.electrician => 'Electrical',
-    ServiceCategory.carpenter => 'Carpentry',
-    ServiceCategory.unknown => 'Other',
-  };
-
-  Color _categoryColor(ServiceCategory category) => switch (category) {
-    ServiceCategory.plumber => AppColors.info,
-    ServiceCategory.electrician => AppColors.warning,
-    ServiceCategory.carpenter => const Color(0xFF8B5CF6),
-    ServiceCategory.unknown => AppColors.textSecondary,
-  };
 }

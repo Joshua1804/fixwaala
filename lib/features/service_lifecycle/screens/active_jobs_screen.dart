@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
-import '../../../core/models/enums.dart';
 import '../../../core/routes/route_names.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/widgets/service_category_ui.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../models/job_model.dart';
 import '../services/job_service.dart';
@@ -94,39 +95,14 @@ class _JobList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (jobs.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                emptyIcon,
-                size: 64,
-                color: AppColors.textHint.withValues(alpha: 0.4),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                emptyTitle,
-                style: AppTextStyles.titleMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                emptySubtitle,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textHint,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+      return EmptyStateWidget(
+        icon: emptyIcon,
+        title: emptyTitle,
+        subtitle: emptySubtitle,
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
       itemCount: jobs.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, i) => _JobCard(job: jobs[i]),
@@ -158,7 +134,7 @@ class _JobCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  _categoryIcon(job.category),
+                  ServiceCategoryUi.icon(job.category),
                   color: JobStatusUi.color(job.status),
                 ),
               ),
@@ -170,7 +146,7 @@ class _JobCard extends StatelessWidget {
                     Text(job.customerName, style: AppTextStyles.titleMedium),
                     const SizedBox(height: 2),
                     Text(
-                      _categoryLabel(job.category),
+                      ServiceCategoryUi.label(job.category),
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -200,18 +176,4 @@ class _JobCard extends StatelessWidget {
       ),
     );
   }
-
-  IconData _categoryIcon(ServiceCategory c) => switch (c) {
-    ServiceCategory.plumber => Icons.plumbing,
-    ServiceCategory.electrician => Icons.electrical_services,
-    ServiceCategory.carpenter => Icons.chair_alt,
-    ServiceCategory.unknown => Icons.handyman_rounded,
-  };
-
-  String _categoryLabel(ServiceCategory c) => switch (c) {
-    ServiceCategory.plumber => 'Plumbing',
-    ServiceCategory.electrician => 'Electrical',
-    ServiceCategory.carpenter => 'Carpentry',
-    ServiceCategory.unknown => 'Other',
-  };
 }

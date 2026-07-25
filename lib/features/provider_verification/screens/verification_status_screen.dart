@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/routes/route_names.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../auth/services/auth_service.dart';
 import '../services/verification_service.dart';
 
@@ -62,10 +63,10 @@ class VerificationStatusScreen extends StatelessWidget {
   };
 
   Color _colorFor(VerificationStatus s) => switch (s) {
-    VerificationStatus.approved => Colors.green,
-    VerificationStatus.rejected => Colors.red,
-    VerificationStatus.resubmissionRequested => Colors.orange,
-    VerificationStatus.pending => Colors.blueGrey,
+    VerificationStatus.approved => AppColors.success,
+    VerificationStatus.rejected => AppColors.error,
+    VerificationStatus.resubmissionRequested => AppColors.warning,
+    VerificationStatus.pending => AppColors.textHint,
   };
 
   String _labelFor(VerificationStatus s) => switch (s) {

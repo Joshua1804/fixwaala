@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/routes/route_names.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../models/fault_classification.dart';
@@ -64,9 +65,9 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
                 children: [
                   if (_result?.safetyFlagged ?? false)
                     Card(
-                      color: Colors.red.shade50,
+                      color: AppColors.error.withValues(alpha: 0.08),
                       child: const ListTile(
-                        leading: Icon(Icons.warning, color: Colors.red),
+                        leading: Icon(Icons.warning, color: AppColors.error),
                         title: Text('Potential safety concern detected'),
                         subtitle: Text(
                           'Please move to a safe distance. Consider emergency services if urgent.',

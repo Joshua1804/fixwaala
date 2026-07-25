@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart'
+    show CollectionReference, FirebaseException;
 import 'package:flutter/foundation.dart';
 
 import '../../../core/models/enums.dart';
+import '../../../core/services/firebase_service.dart';
 import '../../admin_panel/services/account_service.dart';
 import '../models/job_model.dart';
 
@@ -19,11 +22,14 @@ class JobTransitionException implements Exception {
 
 /// Owns the Service Job Lifecycle (Module 7) state machine.
 ///
-/// Firebase-ready: every method is structured so the in-memory map can be
-/// swapped for Firestore reads/writes without changing call sites. While no
-/// Firebase project is configured, state lives in-memory for the lifetime
-/// of the app process — which is sufficient to demo the full customer ↔
-/// provider ↔ admin flow within a single running instance.
+/// Every read here is served synchronously from an in-memory cache
+/// ([_jobs]) so the many call sites that read job state inside `build()`
+/// keep working unchanged. When Firebase is configured, [initialize] opens
+/// a live Firestore listener on the `jobs` collection that both hydrates
+/// this cache on startup (fixing state disappearing on reload) and keeps
+/// it in sync afterward; every mutation also writes through to Firestore.
+/// Without Firebase configured, state lives in-memory for the lifetime of
+/// the app process only.
 class JobService {
   JobService._();
   static final JobService instance = JobService._();
@@ -31,6 +37,42 @@ class JobService {
   final Map<String, Job> _jobs = {};
   int _seq = 0;
   final StreamController<Job> _controller = StreamController<Job>.broadcast();
+
+  StreamSubscription? _liveSub;
+
+  bool get _live => FirebaseService.instance.isInitialized;
+  CollectionReference<Map<String, dynamic>> get _col =>
+      FirebaseService.instance.firestore.collection('jobs');
+
+  /// Opens the live Firestore sync. Call once at app startup (after
+  /// Firebase is initialized). No-op in simulation mode.
+  Future<void> initialize() async {
+    if (!_live) return;
+    await _liveSub?.cancel();
+    _liveSub = _col.snapshots().listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        final job = Job.fromMap(change.doc.data()!);
+        _jobs[job.jobId] = job;
+        _controller.add(job);
+      }
+    });
+  }
+
+  Future<void> _persist(Job job) async {
+    if (!_live) return;
+    try {
+      await _col.doc(job.jobId).set(job.toMap());
+    } on FirebaseException catch (e) {
+      if (kDebugMode && e.code == 'permission-denied') {
+        debugPrint(
+          '[JobService] Firestore denied job write; continuing in local '
+          'cache only. Update Firestore rules before release.',
+        );
+        return;
+      }
+      rethrow;
+    }
+  }
 
   /// Clears all in-memory state. Test-only.
   @visibleForTesting
@@ -67,12 +109,23 @@ class JobService {
     );
     _jobs[job.jobId] = job;
     _controller.add(job);
+    unawaited(_persist(job));
     return job;
   }
 
   // ── Reads ─────────────────────────────────────────────────────────
 
   Job? jobById(String jobId) => _jobs[jobId];
+
+  /// The job created for [ticketId], if any. A ticket only has a job once
+  /// a provider has been confirmed (see [MatchingService.confirmProvider]),
+  /// so this can legitimately return null for a ticket still matching.
+  Job? jobForTicket(String ticketId) {
+    for (final job in _jobs.values) {
+      if (job.ticketId == ticketId) return job;
+    }
+    return null;
+  }
 
   /// The customer's single most-recent still-active job, if any.
   Job? activeJobForCustomer(String customerId) {
@@ -154,6 +207,7 @@ class JobService {
   void _commit(Job updated) {
     _jobs[updated.jobId] = updated;
     _controller.add(updated);
+    unawaited(_persist(updated));
   }
 
   void _requireStatus(Job job, JobStatus expected, String actionLabel) {
