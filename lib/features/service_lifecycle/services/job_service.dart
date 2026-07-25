@@ -117,6 +117,16 @@ class JobService {
 
   Job? jobById(String jobId) => _jobs[jobId];
 
+  /// The job created for [ticketId], if any. A ticket only has a job once
+  /// a provider has been confirmed (see [MatchingService.confirmProvider]),
+  /// so this can legitimately return null for a ticket still matching.
+  Job? jobForTicket(String ticketId) {
+    for (final job in _jobs.values) {
+      if (job.ticketId == ticketId) return job;
+    }
+    return null;
+  }
+
   /// The customer's single most-recent still-active job, if any.
   Job? activeJobForCustomer(String customerId) {
     final matches = _jobs.values.where(

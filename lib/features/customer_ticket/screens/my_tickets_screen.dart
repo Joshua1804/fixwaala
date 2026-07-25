@@ -7,6 +7,7 @@ import '../../../core/widgets/empty_state_widget.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../../../core/widgets/service_category_ui.dart';
 import '../../auth/services/auth_service.dart';
+import '../../service_lifecycle/services/job_service.dart';
 import '../models/ticket_model.dart';
 import '../services/ticket_service.dart';
 import '../widgets/ticket_status_ui.dart';
@@ -128,9 +129,18 @@ class _TicketHistoryCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        Navigator.of(
-          context,
-        ).pushNamed(RouteNames.jobTracking, arguments: {'ticketId': ticket.id});
+        final job = JobService.instance.jobForTicket(ticket.id);
+        if (job != null) {
+          Navigator.of(
+            context,
+          ).pushNamed(RouteNames.jobTracking, arguments: job.jobId);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Still finding a provider for this request.'),
+            ),
+          );
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

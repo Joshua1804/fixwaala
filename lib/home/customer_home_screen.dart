@@ -983,9 +983,18 @@ class _TicketCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        Navigator.of(
-          context,
-        ).pushNamed(RouteNames.jobTracking, arguments: {'ticketId': ticket.id});
+        final job = JobService.instance.jobForTicket(ticket.id);
+        if (job != null) {
+          Navigator.of(
+            context,
+          ).pushNamed(RouteNames.jobTracking, arguments: job.jobId);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Still finding a provider for this request.'),
+            ),
+          );
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
