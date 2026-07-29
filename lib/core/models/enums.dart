@@ -70,3 +70,6 @@ enum RatingDirection { customerToProvider, providerToCustomer }
 
 /// Account standing, set by an admin (Module 12).
 enum AccountStatus { active, restricted, suspended }
+
+/// Lifecycle of a single provider's candidacy on a ticket (Module 5/6).
+enum CandidateStatus { pending, selected, notSelected, rejected, expired }

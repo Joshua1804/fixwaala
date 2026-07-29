@@ -988,12 +988,25 @@ class _TicketCard extends StatelessWidget {
           Navigator.of(
             context,
           ).pushNamed(RouteNames.jobTracking, arguments: job.jobId);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Still finding a provider for this request.'),
-            ),
-          );
+          return;
+        }
+        switch (ticket.status) {
+          case TicketStatus.matching:
+            Navigator.of(
+              context,
+            ).pushNamed(RouteNames.matchingProgress, arguments: ticket.id);
+            break;
+          case TicketStatus.awaitingCustomerConfirmation:
+            Navigator.of(
+              context,
+            ).pushNamed(RouteNames.providerReview, arguments: ticket.id);
+            break;
+          default:
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Still finding a provider for this request.'),
+              ),
+            );
         }
       },
       child: Container(
@@ -1191,9 +1204,7 @@ class _ProfileTabState extends State<_ProfileTab>
                 nameController: _nameController,
                 phoneController: _phoneController,
               ),
-              _SettingsContent(
-                user: user,
-              ),
+              _SettingsContent(user: user),
             ],
           );
         },
@@ -1269,10 +1280,7 @@ class _ProfileContentState extends State<_ProfileContent> {
               ),
               if (widget.user?.email.isNotEmpty ?? false) ...[
                 const SizedBox(height: 2),
-                Text(
-                  widget.user!.email,
-                  style: AppTextStyles.bodyMedium,
-                ),
+                Text(widget.user!.email, style: AppTextStyles.bodyMedium),
               ],
               if (widget.user?.phone?.isNotEmpty ?? false) ...[
                 const SizedBox(height: 4),
@@ -1290,10 +1298,7 @@ class _ProfileContentState extends State<_ProfileContent> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Basic Information',
-              style: AppTextStyles.titleLarge,
-            ),
+            Text('Basic Information', style: AppTextStyles.titleLarge),
             TextButton(
               onPressed: () => setState(() => _isEditing = !_isEditing),
               child: Text(_isEditing ? 'Cancel' : 'Edit'),
@@ -1317,17 +1322,13 @@ class _ProfileContentState extends State<_ProfileContent> {
         ),
         if (_isEditing) ...[
           const SizedBox(height: 20),
-          PrimaryButton(
-            label: 'Save Changes',
-            onPressed: _handleSave,
-          ),
+          PrimaryButton(label: 'Save Changes', onPressed: _handleSave),
         ],
         const SizedBox(height: 32),
         _ProfileTile(
           icon: Icons.history_rounded,
           label: 'Order History',
-          onTap: () =>
-              Navigator.of(context).pushNamed(RouteNames.myTickets),
+          onTap: () => Navigator.of(context).pushNamed(RouteNames.myTickets),
         ),
         _ProfileTile(
           icon: Icons.report_outlined,
@@ -1376,9 +1377,7 @@ class _ProfileContentState extends State<_ProfileContent> {
                 : AppColors.textHint.withValues(alpha: 0.05),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: AppColors.divider,
-              ),
+              borderSide: BorderSide(color: AppColors.divider),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
@@ -1392,8 +1391,10 @@ class _ProfileContentState extends State<_ProfileContent> {
                 color: AppColors.textHint.withValues(alpha: 0.1),
               ),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
             hintText: label,
             hintStyle: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.textHint,
@@ -1464,8 +1465,7 @@ class _SettingsContent extends StatelessWidget {
           icon: Icons.notifications_outlined,
           child: StreamBuilder<bool>(
             stream: AppPreferencesService.instance.notificationsEnabledStream,
-            initialData:
-                AppPreferencesService.instance.notificationsEnabled,
+            initialData: AppPreferencesService.instance.notificationsEnabled,
             builder: (context, snapshot) {
               final enabled = snapshot.data ?? true;
               return Row(
@@ -1490,8 +1490,9 @@ class _SettingsContent extends StatelessWidget {
                   Switch(
                     value: enabled,
                     onChanged: (value) {
-                      AppPreferencesService.instance
-                          .setNotificationsEnabled(value);
+                      AppPreferencesService.instance.setNotificationsEnabled(
+                        value,
+                      );
                     },
                     activeThumbColor: AppColors.primary,
                   ),
@@ -1550,8 +1551,9 @@ class _SettingsContent extends StatelessWidget {
           icon: Icons.logout_rounded,
           label: 'Sign Out',
           isDestructive: true,
-          onTap: () => Navigator.of(context)
-              .pushReplacementNamed(RouteNames.roleSelection),
+          onTap: () => Navigator.of(
+            context,
+          ).pushReplacementNamed(RouteNames.roleSelection),
         ),
       ],
     );
@@ -1588,17 +1590,12 @@ class _SettingsContent extends StatelessWidget {
             Text(
               label,
               style: AppTextStyles.bodyLarge.copyWith(
-                color:
-                    isSelected ? AppColors.primary : AppColors.textPrimary,
+                color: isSelected ? AppColors.primary : AppColors.textPrimary,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
             const Spacer(),
-            if (isSelected)
-              Icon(
-                Icons.check_rounded,
-                color: AppColors.primary,
-              ),
+            if (isSelected) Icon(Icons.check_rounded, color: AppColors.primary),
           ],
         ),
       ),

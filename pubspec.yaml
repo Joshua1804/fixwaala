@@ -20,8 +20,11 @@ dependencies:
 
   # Maps & location
   # google_maps_flutter: ^2.6.0
-  # geolocator: ^12.0.0
-  # geocoding: ^3.0.0
+  geolocator: ^13.0.2
+  geocoding: ^3.0.0
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  flutter_local_notifications: ^18.0.1
 
   # State management & routing
   # provider: ^6.1.2

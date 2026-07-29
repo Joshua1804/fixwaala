@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../core/constants/app_constants.dart';
+import '../core/models/enums.dart';
 import '../core/models/user_model.dart';
 import '../core/routes/route_names.dart';
+import '../core/services/location_service.dart';
+import '../core/services/notification_service.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_durations.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/motion.dart';
 import '../features/auth/services/auth_service.dart';
+import '../features/geo_broadcast/services/geo_broadcast_service.dart';
+import '../features/geo_broadcast/services/provider_presence_service.dart';
 import '../features/provider_dashboard/models/analytics_model.dart';
 import '../features/provider_dashboard/screens/provider_dashboard_screen.dart';
 import '../features/provider_dashboard/services/analytics_service.dart';
@@ -15,7 +20,6 @@ import '../features/service_lifecycle/models/job_model.dart';
 import '../features/service_lifecycle/screens/active_jobs_screen.dart';
 import '../features/service_lifecycle/services/job_service.dart';
 import '../features/customer_ticket/models/ticket_model.dart';
-import '../features/customer_ticket/services/ticket_service.dart';
 import '../features/trust_gated_matching/services/matching_service.dart';
 import '../core/services/app_preferences_service.dart';
 import '../core/widgets/custom_button.dart';
@@ -52,6 +56,18 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     } else {
       _entranceController.forward();
     }
+    _loadOnlineStatus();
+  }
+
+  Future<void> _loadOnlineStatus() async {
+    final user = await AuthService.instance.currentUser();
+    if (!mounted) return;
+    setState(() => _online = user?.providerProfile?.online ?? false);
+  }
+
+  Future<void> _handleToggleOnline(bool value) async {
+    setState(() => _online = value);
+    await ProviderPresenceService.instance.setOnline(value);
   }
 
   @override
@@ -70,7 +86,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           _ProviderHomeTab(
             fadeAnimation: _fade,
             online: _online,
-            onToggleOnline: (v) => setState(() => _online = v),
+            onToggleOnline: _handleToggleOnline,
           ),
           const ActiveJobsScreen(),
           const ProviderDashboardScreen(),
@@ -316,121 +332,152 @@ class _ProviderHomeTab extends StatelessWidget {
 
         // ── Section: Available Opportunities ───────────────────
         if (online)
-          StreamBuilder<List<Ticket>>(
-            stream: TicketService.instance.watchMatchingTickets(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                debugPrint(
-                  '[ProviderHome] watchMatchingTickets error: '
-                  '${snapshot.error}',
-                );
+          FutureBuilder<AppUser?>(
+            future: AuthService.instance.currentUser(),
+            builder: (context, userSnap) {
+              final user = userSnap.data;
+              final categories =
+                  user?.providerProfile?.skills ?? const <ServiceCategory>[];
+              final location = user?.providerProfile?.liveLocation;
+              if (location == null) {
+                return const SliverToBoxAdapter(child: SizedBox.shrink());
               }
-              final tickets = snapshot.data ?? [];
-              return SliverToBoxAdapter(
-                child: FadeTransition(
-                  opacity: fadeAnimation,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Incoming Service Requests',
-                              style: AppTextStyles.titleLarge,
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.error,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '${tickets.length} LIVE',
-                                style: AppTextStyles.caption.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        if (snapshot.hasError)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppColors.error.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: AppColors.error.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.error_outline_rounded,
-                                  color: AppColors.error,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'Could not load requests: '
-                                    '${snapshot.error}',
-                                    style: AppTextStyles.bodyMedium.copyWith(
-                                      color: AppColors.error,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else if (tickets.isEmpty)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardTheme.color,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: AppColors.divider.withValues(alpha: 0.5),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.search_rounded,
-                                  color: AppColors.primary,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'Waiting for customer requests nearby...',
-                                    style: AppTextStyles.bodyMedium.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          ...tickets.map(
-                            (ticket) => Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _OpportunityTicketCard(ticket: ticket),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
+              return StreamBuilder<List<Ticket>>(
+                stream: GeoBroadcastService.instance.watchNearbyMatchingTickets(
+                  categories: categories,
+                  providerLocation: location,
                 ),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    debugPrint(
+                      '[ProviderHome] watchNearbyMatchingTickets error: '
+                      '${snapshot.error}',
+                    );
+                  }
+                  final tickets = snapshot.data ?? [];
+                  return _NewTicketNotifier(
+                    tickets: tickets,
+                    child: SliverToBoxAdapter(
+                      child: FadeTransition(
+                        opacity: fadeAnimation,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'Incoming Service Requests',
+                                    style: AppTextStyles.titleLarge,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.error,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      '${tickets.length} LIVE',
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              if (snapshot.hasError)
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error.withValues(
+                                      alpha: 0.08,
+                                    ),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: AppColors.error.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.error_outline_rounded,
+                                        color: AppColors.error,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Could not load requests: '
+                                          '${snapshot.error}',
+                                          style: AppTextStyles.bodyMedium
+                                              .copyWith(color: AppColors.error),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else if (tickets.isEmpty)
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).cardTheme.color,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: AppColors.divider.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.search_rounded,
+                                        color: AppColors.primary,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Waiting for customer requests nearby...',
+                                          style: AppTextStyles.bodyMedium
+                                              .copyWith(
+                                                color: AppColors.textSecondary,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                ...tickets.map(
+                                  (ticket) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: _OpportunityTicketCard(
+                                      ticket: ticket,
+                                      distanceKm: LocationService.instance
+                                          .distanceKm(
+                                            location,
+                                            ticket.approximateLocation,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -1194,8 +1241,7 @@ class _ProviderSettingsContent extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            if (isSelected)
-              Icon(Icons.check_rounded, color: AppColors.primary),
+            if (isSelected) Icon(Icons.check_rounded, color: AppColors.primary),
           ],
         ),
       ),
@@ -1276,9 +1322,58 @@ class _ProviderProfileTile extends StatelessWidget {
 }
 
 // ── Opportunity Ticket Card ────────────────────────────────────────
+/// Fires a local notification for every ticket that appears in [tickets]
+/// which wasn't there before — the in-app stand-in for a push notification
+/// when a new nearby request comes in (there is no push backend).
+class _NewTicketNotifier extends StatefulWidget {
+  final List<Ticket> tickets;
+  final Widget child;
+  const _NewTicketNotifier({required this.tickets, required this.child});
+
+  @override
+  State<_NewTicketNotifier> createState() => _NewTicketNotifierState();
+}
+
+class _NewTicketNotifierState extends State<_NewTicketNotifier> {
+  Set<String> _seenIds = {};
+  bool _initialized = false;
+
+  @override
+  void didUpdateWidget(_NewTicketNotifier oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _checkForNewTickets();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _seenIds = widget.tickets.map((t) => t.id).toSet();
+    _initialized = true;
+  }
+
+  void _checkForNewTickets() {
+    if (!_initialized) return;
+    final newTickets = widget.tickets.where((t) => !_seenIds.contains(t.id));
+    for (final ticket in newTickets) {
+      NotificationService.instance.showLocalAlert(
+        title: 'New service request nearby',
+        body: ticket.description,
+      );
+    }
+    _seenIds = widget.tickets.map((t) => t.id).toSet();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 class _OpportunityTicketCard extends StatefulWidget {
   final Ticket ticket;
-  const _OpportunityTicketCard({required this.ticket});
+  final double distanceKm;
+  const _OpportunityTicketCard({
+    required this.ticket,
+    required this.distanceKm,
+  });
 
   @override
   State<_OpportunityTicketCard> createState() => _OpportunityTicketCardState();
@@ -1286,47 +1381,44 @@ class _OpportunityTicketCard extends StatefulWidget {
 
 class _OpportunityTicketCardState extends State<_OpportunityTicketCard> {
   bool _accepting = false;
+  bool _declined = false;
 
   Future<void> _accept(AppUser? currentProvider) async {
     setState(() => _accepting = true);
     try {
       final providerId = currentProvider?.id ?? AppConstants.demoProviderId;
-      final providerName =
-          currentProvider?.name ?? AppConstants.demoProviderName;
 
-      final lease = await MatchingService.instance.acceptOpportunity(
+      await MatchingService.instance.acceptOpportunity(
         ticketId: widget.ticket.id,
         providerId: providerId,
         provider: currentProvider,
       );
 
-      if (lease != null) {
-        await MatchingService.instance.confirmProvider(
-          ticketId: widget.ticket.id,
-          providerId: providerId,
-          providerName: providerName,
-          customerName: widget.ticket.customerName,
-          category: widget.ticket.category,
-        );
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Accepted ticket from ${widget.ticket.customerName}!',
-            ),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        Navigator.of(context).pushNamed(RouteNames.providerActiveJobs);
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Accepted — waiting for the customer to confirm.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _accepting = false);
     }
   }
 
+  Future<void> _decline(AppUser? currentProvider) async {
+    final providerId = currentProvider?.id ?? AppConstants.demoProviderId;
+    await MatchingService.instance.declineOpportunity(
+      ticketId: widget.ticket.id,
+      providerId: providerId,
+    );
+    if (!mounted) return;
+    setState(() => _declined = true);
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_declined) return const SizedBox.shrink();
     return FutureBuilder<AppUser?>(
       future: AuthService.instance.currentUser(),
       builder: (context, userSnap) {
@@ -1393,55 +1485,63 @@ class _OpportunityTicketCardState extends State<_OpportunityTicketCard> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              if (widget.ticket.addressLine != null &&
-                  widget.ticket.addressLine!.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 16,
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.route_outlined,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${widget.distanceKm.toStringAsFixed(1)} km away · '
+                    '~${(widget.distanceKm * 2).round().clamp(1, 999)} min',
+                    style: AppTextStyles.caption.copyWith(
                       color: AppColors.textSecondary,
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        widget.ticket.addressLine!,
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _accepting ? null : () => _accept(currentProvider),
-                  icon: _accepting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.check_circle_outline, size: 20),
-                  label: Text(_accepting ? 'Accept Ticket' : 'Accept Ticket'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _accepting
+                          ? null
+                          : () => _decline(currentProvider),
+                      child: const Text('Decline'),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _accepting
+                          ? null
+                          : () => _accept(currentProvider),
+                      icon: _accepting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check_circle_outline, size: 20),
+                      label: const Text('Accept'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

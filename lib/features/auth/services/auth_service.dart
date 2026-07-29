@@ -281,6 +281,34 @@ class AuthService {
         });
   }
 
+  // ── Provider presence ────────────────────────────────────────────
+
+  /// Overwrites the current (provider) user's `providerProfile` — used by
+  /// [ProviderPresenceService] to persist online status and live location
+  /// without going through the full onboarding flow.
+  Future<void> updateProviderProfile(ProviderProfile profile) async {
+    final current = _currentUser;
+    if (current == null) return;
+    final updated = current.copyWith(
+      providerProfile: profile,
+      updatedAt: DateTime.now(),
+    );
+    _currentUser = updated;
+
+    if (!_live) {
+      _userDb[updated.id] = updated;
+      return;
+    }
+
+    await FirebaseService.instance.firestore
+        .collection('users')
+        .doc(updated.id)
+        .update({
+          'providerProfile': profile.toMap(),
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+  }
+
   // ── Session ──────────────────────────────────────────────────────
 
   Future<AppUser?> currentUser() async {
