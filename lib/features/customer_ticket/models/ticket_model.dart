@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 
 import '../../../core/models/enums.dart';
 import '../../../core/models/user_model.dart';
+import '../../ai_assist/models/clarifying_qa.dart';
 
 class Ticket {
   final String id;
@@ -18,8 +19,9 @@ class Ticket {
   final String? assignedProviderId;
   final DateTime createdAt;
   final DateTime? updatedAt;
-  final double broadcastRadiusKm;
-  final DateTime? candidateWindowExpiresAt;
+  final List<ClarifyingQa> clarifyingQa;
+  final String? aiSummary;
+  final List<String> recommendedEquipment;
 
   const Ticket({
     required this.id,
@@ -36,8 +38,9 @@ class Ticket {
     this.addressLine,
     this.assignedProviderId,
     this.updatedAt,
-    this.broadcastRadiusKm = 5,
-    this.candidateWindowExpiresAt,
+    this.clarifyingQa = const [],
+    this.aiSummary,
+    this.recommendedEquipment = const [],
   });
 
   /// Whether this ticket is still "live" (not yet finished or cancelled).
@@ -72,10 +75,9 @@ class Ticket {
       addressLine: addressLine,
       assignedProviderId: assignedProviderId ?? this.assignedProviderId,
       updatedAt: updatedAt ?? DateTime.now(),
-      broadcastRadiusKm: broadcastRadiusKm ?? this.broadcastRadiusKm,
-      candidateWindowExpiresAt: clearCandidateWindowExpiresAt
-          ? null
-          : (candidateWindowExpiresAt ?? this.candidateWindowExpiresAt),
+      clarifyingQa: clarifyingQa,
+      aiSummary: aiSummary,
+      recommendedEquipment: recommendedEquipment,
     );
   }
 
@@ -102,11 +104,10 @@ class Ticket {
         exactLocation!.latitude,
         exactLocation!.longitude,
       ),
-    'broadcastRadiusKm': broadcastRadiusKm,
-    if (candidateWindowExpiresAt != null)
-      'candidateWindowExpiresAt': fs.Timestamp.fromDate(
-        candidateWindowExpiresAt!,
-      ),
+    'clarifyingQa': clarifyingQa.map((qa) => qa.toMap()).toList(),
+    if (aiSummary != null && aiSummary!.trim().isNotEmpty)
+      'aiSummary': aiSummary,
+    'recommendedEquipment': recommendedEquipment,
   };
 
   factory Ticket.fromMap(Map<String, dynamic> map) {
@@ -140,10 +141,13 @@ class Ticket {
       updatedAt: map['updatedAt'] is fs.Timestamp
           ? (map['updatedAt'] as fs.Timestamp).toDate()
           : null,
-      broadcastRadiusKm: (map['broadcastRadiusKm'] as num?)?.toDouble() ?? 5,
-      candidateWindowExpiresAt: map['candidateWindowExpiresAt'] is fs.Timestamp
-          ? (map['candidateWindowExpiresAt'] as fs.Timestamp).toDate()
-          : null,
+      clarifyingQa: (map['clarifyingQa'] as List<dynamic>? ?? [])
+          .map((m) => ClarifyingQa.fromMap(Map<String, dynamic>.from(m)))
+          .toList(),
+      aiSummary: map['aiSummary'] as String?,
+      recommendedEquipment: List<String>.from(
+        map['recommendedEquipment'] ?? [],
+      ),
     );
   }
 }

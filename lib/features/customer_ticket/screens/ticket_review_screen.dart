@@ -6,6 +6,7 @@ import '../../../core/routes/route_names.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../ai_assist/models/clarifying_qa.dart';
 import '../../auth/services/auth_service.dart';
 import '../models/ticket_model.dart';
 import '../services/ticket_service.dart';
@@ -66,6 +67,13 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
         status: TicketStatus.draft,
         createdAt: DateTime.now(),
         addressLine: args['address']?.toString(),
+        aiSummary: args['aiSummary']?.toString(),
+        recommendedEquipment: List<String>.from(
+          args['recommendedEquipment'] ?? const [],
+        ),
+        clarifyingQa: (args['clarifyingQa'] as List? ?? const [])
+            .map((m) => ClarifyingQa.fromMap(Map<String, dynamic>.from(m)))
+            .toList(),
       );
 
       final ticketId = await TicketService.instance.createTicket(draft);
@@ -119,10 +127,34 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
               label: 'Description',
               value: args['description'] ?? '—',
             ),
+            if ((args['aiSummary'] as String?)?.isNotEmpty ?? false)
+              _SummaryTile(label: 'AI summary', value: args['aiSummary']),
             _SummaryTile(
               label: 'Location',
               value: args['address'] ?? 'Current',
             ),
+            if ((args['images'] as List?)?.isNotEmpty ?? false) ...[
+              const SizedBox(height: 8),
+              const Text('Photos'),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 72,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: (args['images'] as List).length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, i) => ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      (args['images'] as List)[i].toString(),
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const Spacer(),
             const Text(
               'Your exact address stays private until you confirm a provider.',

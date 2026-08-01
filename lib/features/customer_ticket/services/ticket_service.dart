@@ -45,6 +45,9 @@ class TicketService {
         status: TicketStatus.matching,
         createdAt: DateTime.now(),
         addressLine: draft.addressLine,
+        clarifyingQa: draft.clarifyingQa,
+        aiSummary: draft.aiSummary,
+        recommendedEquipment: draft.recommendedEquipment,
       );
       try {
         await docRef.set(ticket.toMap());
@@ -80,17 +83,13 @@ class TicketService {
       status: TicketStatus.matching,
       createdAt: now,
       addressLine: draft.addressLine,
+      clarifyingQa: draft.clarifyingQa,
+      aiSummary: draft.aiSummary,
+      recommendedEquipment: draft.recommendedEquipment,
     );
     _memStore[id] = ticket;
     debugPrint('[TicketService] Created ticket $id (simulation)');
     return id;
-  }
-
-  // ── Upload images ──────────────────────────────────────────────
-
-  Future<List<String>> uploadImages(List<String> localPaths) async {
-    // TODO: upload each to Firebase Storage when configured.
-    return localPaths;
   }
 
   // ── Read: single ticket ────────────────────────────────────────

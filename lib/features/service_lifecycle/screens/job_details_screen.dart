@@ -8,6 +8,8 @@ import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../../../core/widgets/service_category_ui.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../customer_ticket/models/ticket_model.dart';
+import '../../customer_ticket/services/ticket_service.dart';
 import '../../payment/services/payment_service.dart';
 import '../models/job_model.dart';
 import '../services/job_service.dart';
@@ -21,6 +23,17 @@ class JobDetailsScreen extends StatelessWidget {
 
   String _resolveJobId(BuildContext context) =>
       jobId ?? ModalRoute.of(context)!.settings.arguments as String;
+
+  /// [TicketService.watchTicket] throws synchronously if the id isn't found
+  /// in the in-memory fallback store — guard so a stale/demo ticketId can't
+  /// crash the job details screen.
+  Stream<Ticket> _ticketStream(String ticketId) {
+    try {
+      return TicketService.instance.watchTicket(ticketId);
+    } catch (_) {
+      return const Stream.empty();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +126,104 @@ class JobDetailsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
+              StreamBuilder<Ticket>(
+                stream: _ticketStream(job.ticketId),
+                builder: (context, ticketSnapshot) {
+                  final ticket = ticketSnapshot.data;
+                  if (ticket == null) return const SizedBox.shrink();
+                  final hasSummary = (ticket.aiSummary ?? '').isNotEmpty;
+                  final hasEquipment = ticket.recommendedEquipment.isNotEmpty;
+                  final hasQa = ticket.clarifyingQa.isNotEmpty;
+                  final hasPhotos = ticket.imageUrls.isNotEmpty;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Problem details', style: AppTextStyles.titleLarge),
+                            const SizedBox(height: 8),
+                            Text(ticket.description),
+                            if (hasPhotos) ...[
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                height: 72,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: ticket.imageUrls.length,
+                                  separatorBuilder: (_, _) =>
+                                      const SizedBox(width: 8),
+                                  itemBuilder: (context, i) => ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      ticket.imageUrls[i],
+                                      width: 72,
+                                      height: 72,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (hasSummary) ...[
+                              const SizedBox(height: 12),
+                              Text('Summary', style: AppTextStyles.titleMedium),
+                              const SizedBox(height: 4),
+                              Text(ticket.aiSummary!),
+                            ],
+                            if (hasEquipment) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                'Bring with you',
+                                style: AppTextStyles.titleMedium,
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: ticket.recommendedEquipment
+                                    .map((e) => Chip(label: Text(e)))
+                                    .toList(),
+                              ),
+                            ],
+                            if (hasQa) ...[
+                              const SizedBox(height: 12),
+                              ExpansionTile(
+                                tilePadding: EdgeInsets.zero,
+                                title: const Text('Follow-up answers'),
+                                children: ticket.clarifyingQa
+                                    .map(
+                                      (qa) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 8),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              qa.question,
+                                              style: AppTextStyles.bodySmall
+                                                  .copyWith(
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                  ),
+                                            ),
+                                            Text(qa.answer),
+                                          ],
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
               if (job.estimate != null) ...[
                 Text('Estimate', style: AppTextStyles.titleLarge),
                 const SizedBox(height: 8),
