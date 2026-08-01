@@ -44,6 +44,12 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
         (c) => c.name == (args['category'] ?? ''),
         orElse: () => ServiceCategory.unknown,
       );
+      if (category == ServiceCategory.unknown) {
+        throw StateError(
+          'Please choose a service category before submitting — this is '
+          'how nearby providers find your request.',
+        );
+      }
       final complexity = ProblemComplexity.values.firstWhere(
         (c) => c.name == (args['complexity'] ?? ''),
         orElse: () => ProblemComplexity.low,

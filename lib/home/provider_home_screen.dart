@@ -39,6 +39,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     with SingleTickerProviderStateMixin {
   int _currentTab = 0;
   bool _online = false;
+  String _providerId = AppConstants.demoProviderId;
 
   late final AnimationController _entranceController;
   late final Animation<double> _fade;
@@ -62,7 +63,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   Future<void> _loadOnlineStatus() async {
     final user = await AuthService.instance.currentUser();
     if (!mounted) return;
-    setState(() => _online = user?.providerProfile?.online ?? false);
+    setState(() {
+      _online = user?.providerProfile?.online ?? false;
+      _providerId = user?.id ?? AppConstants.demoProviderId;
+    });
   }
 
   Future<void> _handleToggleOnline(bool value) async {
@@ -87,6 +91,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             fadeAnimation: _fade,
             online: _online,
             onToggleOnline: _handleToggleOnline,
+            providerId: _providerId,
           ),
           const ActiveJobsScreen(),
           const ProviderDashboardScreen(),
@@ -128,15 +133,14 @@ class _ProviderHomeTab extends StatelessWidget {
   final Animation<double> fadeAnimation;
   final bool online;
   final ValueChanged<bool> onToggleOnline;
+  final String providerId;
 
   const _ProviderHomeTab({
     required this.fadeAnimation,
     required this.online,
     required this.onToggleOnline,
+    required this.providerId,
   });
-
-  // NOTE: uses a shared demo provider id — see AppConstants.demoProviderId.
-  String get _providerId => AppConstants.demoProviderId;
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +148,7 @@ class _ProviderHomeTab extends StatelessWidget {
       stream: JobService.instance.watchAllChanges(),
       builder: (context, _) {
         return FutureBuilder<ProviderAnalytics>(
-          future: AnalyticsService.instance.load(_providerId),
+          future: AnalyticsService.instance.load(providerId),
           builder: (context, snapshot) {
             final analytics = snapshot.data ?? ProviderAnalytics.empty;
             return _buildScrollView(context, analytics);
@@ -1384,13 +1388,24 @@ class _OpportunityTicketCardState extends State<_OpportunityTicketCard> {
   bool _declined = false;
 
   Future<void> _accept(AppUser? currentProvider) async {
+    if (currentProvider == null) {
+      // Accepting under the wrong identity would silently fail the
+      // Firestore write (candidate docId must equal the accepting
+      // provider's own auth uid per firestore.rules) and leave the
+      // customer stuck waiting with no candidate ever appearing.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Still loading your account — try again in a moment.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
     setState(() => _accepting = true);
     try {
-      final providerId = currentProvider?.id ?? AppConstants.demoProviderId;
-
       await MatchingService.instance.acceptOpportunity(
         ticketId: widget.ticket.id,
-        providerId: providerId,
+        providerId: currentProvider.id,
         provider: currentProvider,
       );
 
@@ -1407,10 +1422,10 @@ class _OpportunityTicketCardState extends State<_OpportunityTicketCard> {
   }
 
   Future<void> _decline(AppUser? currentProvider) async {
-    final providerId = currentProvider?.id ?? AppConstants.demoProviderId;
+    if (currentProvider == null) return;
     await MatchingService.instance.declineOpportunity(
       ticketId: widget.ticket.id,
-      providerId: providerId,
+      providerId: currentProvider.id,
     );
     if (!mounted) return;
     setState(() => _declined = true);

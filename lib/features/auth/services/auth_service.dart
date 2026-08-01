@@ -338,6 +338,20 @@ class AuthService {
     return _currentUser;
   }
 
+  /// Looks up any user by id — used to show a provider's public profile to
+  /// a customer reviewing candidates, distinct from [currentUser] which
+  /// only ever resolves the signed-in session's own account.
+  Future<AppUser?> getUserById(String userId) async {
+    if (!_live) return _userDb[userId];
+
+    final doc = await FirebaseService.instance.firestore
+        .collection('users')
+        .doc(userId)
+        .get();
+    if (!doc.exists) return null;
+    return AppUser.fromMap(doc.data()!);
+  }
+
   Future<void> signOut() async {
     _currentUser = null;
     if (_live) {

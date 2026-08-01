@@ -79,12 +79,30 @@ class _MatchingScreenState extends State<MatchingScreen> {
       body: StreamBuilder<List<CandidateLease>>(
         stream: _candidatesStream,
         builder: (context, candSnap) {
+          if (candSnap.hasError) {
+            debugPrint(
+              '[MatchingScreen] candidates stream error: ${candSnap.error}',
+            );
+            return _ErrorState(
+              message: 'Could not load provider responses: ${candSnap.error}',
+              onRetry: _retry,
+            );
+          }
           final candidates = candSnap.data ?? const <CandidateLease>[];
           _maybeNavigateToReview(candidates);
 
           return StreamBuilder<Ticket>(
             stream: _ticketStream,
             builder: (context, ticketSnap) {
+              if (ticketSnap.hasError) {
+                debugPrint(
+                  '[MatchingScreen] ticket stream error: ${ticketSnap.error}',
+                );
+                return _ErrorState(
+                  message: 'Could not load your request: ${ticketSnap.error}',
+                  onRetry: _retry,
+                );
+              }
               final ticket = ticketSnap.data;
 
               if (ticket != null && ticket.status == TicketStatus.failed) {
@@ -125,6 +143,26 @@ class _MatchingScreenState extends State<MatchingScreen> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorState({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: EmptyStateWidget(
+        icon: Icons.error_outline_rounded,
+        title: 'Something went wrong',
+        subtitle: message,
+        actionLabel: 'Try again',
+        onAction: onRetry,
       ),
     );
   }

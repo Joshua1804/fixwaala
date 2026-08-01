@@ -4,6 +4,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/loading_widget.dart';
+import '../../auth/services/auth_service.dart';
 import '../../service_lifecycle/models/job_model.dart';
 import '../../service_lifecycle/services/job_service.dart';
 import '../models/analytics_model.dart';
@@ -15,85 +16,92 @@ import '../services/analytics_service.dart';
 class PerformanceScreen extends StatelessWidget {
   const PerformanceScreen({super.key});
 
-  // NOTE: uses a shared demo provider id — see AppConstants.demoProviderId.
-  String get _providerId => AppConstants.demoProviderId;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Performance')),
-      body: StreamBuilder<Job>(
-        stream: JobService.instance.watchAllChanges(),
-        builder: (context, _) => FutureBuilder<ProviderAnalytics>(
-          future: AnalyticsService.instance.load(_providerId),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const LoadingWidget(label: 'Crunching your numbers...');
-            }
-            final a = snapshot.data ?? ProviderAnalytics.empty;
-            if (!a.hasHistory) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.insights_rounded,
-                        size: 64,
-                        color: AppColors.textHint.withValues(alpha: 0.4),
+      body: FutureBuilder(
+        future: AuthService.instance.currentUser(),
+        builder: (context, userSnap) {
+          final providerId = userSnap.data?.id ?? AppConstants.demoProviderId;
+          return StreamBuilder<Job>(
+            stream: JobService.instance.watchAllChanges(),
+            builder: (context, _) => FutureBuilder<ProviderAnalytics>(
+              future: AnalyticsService.instance.load(providerId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const LoadingWidget(
+                    label: 'Crunching your numbers...',
+                  );
+                }
+                final a = snapshot.data ?? ProviderAnalytics.empty;
+                if (!a.hasHistory) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.insights_rounded,
+                            size: 64,
+                            color: AppColors.textHint.withValues(alpha: 0.4),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Not enough data yet',
+                            style: AppTextStyles.titleMedium.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Trends appear once you start completing jobs.',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textHint,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Not enough data yet',
-                        style: AppTextStyles.titleMedium.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Trends appear once you start completing jobs.',
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textHint,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
+                    ),
+                  );
+                }
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _ChartCard(
-                  title: 'Key metrics',
-                  child: _MetricsGrid(analytics: a),
-                ),
-                const SizedBox(height: 16),
-                _ChartCard(
-                  title: 'Jobs completed — last 7 days',
-                  child: _BarRow(
-                    values: a.weeklyJobs.map((v) => v.toDouble()).toList(),
-                    labels: _last7DayLabels(),
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _ChartCard(
-                  title: 'Popular service categories',
-                  child: _CategoryBars(distribution: a.categoryDistribution),
-                ),
-                const SizedBox(height: 16),
-                _ChartCard(
-                  title: 'Peak demand hours',
-                  child: _PeakHoursBars(hours: a.peakDemandHours),
-                ),
-              ],
-            );
-          },
-        ),
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _ChartCard(
+                      title: 'Key metrics',
+                      child: _MetricsGrid(analytics: a),
+                    ),
+                    const SizedBox(height: 16),
+                    _ChartCard(
+                      title: 'Jobs completed — last 7 days',
+                      child: _BarRow(
+                        values: a.weeklyJobs.map((v) => v.toDouble()).toList(),
+                        labels: _last7DayLabels(),
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _ChartCard(
+                      title: 'Popular service categories',
+                      child: _CategoryBars(
+                        distribution: a.categoryDistribution,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _ChartCard(
+                      title: 'Peak demand hours',
+                      child: _PeakHoursBars(hours: a.peakDemandHours),
+                    ),
+                  ],
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }

@@ -245,6 +245,15 @@ class _CandidateCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.person_outline_rounded, size: 18),
+              label: const Text('View full profile'),
+              onPressed: () => Navigator.of(context).pushNamed(
+                RouteNames.candidateProviderProfile,
+                arguments: candidate.providerId,
+              ),
+            ),
+            const SizedBox(height: 8),
             PrimaryButton(label: 'Confirm this provider', onPressed: onConfirm),
           ],
         ),
