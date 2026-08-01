@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
+import '../../geo_broadcast/services/provider_presence_service.dart';
 import '../models/job_model.dart';
 import '../services/job_service.dart';
 import '../widgets/job_status_ui.dart';
@@ -153,14 +154,18 @@ class _ActionRow extends StatelessWidget {
       case JobStatus.accepted:
         return PrimaryButton(
           label: 'Start travel (En Route)',
-          onPressed: () =>
-              run(() => JobService.instance.startEnRoute(job.jobId)),
+          onPressed: () => run(() async {
+            await JobService.instance.startEnRoute(job.jobId);
+            ProviderPresenceService.instance.startSharing();
+          }),
         );
       case JobStatus.enRoute:
         return PrimaryButton(
           label: 'Mark arrived',
-          onPressed: () =>
-              run(() => JobService.instance.markArrived(job.jobId)),
+          onPressed: () => run(() async {
+            await JobService.instance.markArrived(job.jobId);
+            await ProviderPresenceService.instance.stopSharing();
+          }),
         );
       case JobStatus.arrived:
         return PrimaryButton(

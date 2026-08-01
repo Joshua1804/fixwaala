@@ -15,6 +15,15 @@ service cloud.firestore {
       allow create: if isSignedIn() &&
         request.resource.data.customerId == request.auth.uid;
       allow update: if isSignedIn();
+
+      match /candidates/{providerId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && request.auth.uid == providerId;
+        allow update: if isSignedIn() &&
+          (request.auth.uid == providerId ||
+           request.auth.uid == get(/databases/$(database)/documents/tickets/$(ticketId)).data.customerId);
+        allow delete: if false;
+      }
     }
 
     match /jobs/{jobId} {

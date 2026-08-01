@@ -4,6 +4,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/loading_widget.dart';
+import '../../auth/services/auth_service.dart';
 import '../../payment/services/payment_service.dart';
 import '../../service_lifecycle/models/job_model.dart';
 import '../../service_lifecycle/services/job_service.dart';
@@ -15,23 +16,26 @@ import '../services/analytics_service.dart';
 class EarningsScreen extends StatelessWidget {
   const EarningsScreen({super.key});
 
-  // NOTE: uses a shared demo provider id — see AppConstants.demoProviderId.
-  String get _providerId => AppConstants.demoProviderId;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Earnings summary')),
-      body: StreamBuilder<Job>(
-        stream: JobService.instance.watchAllChanges(),
-        builder: (context, _) => _buildBody(context),
+      body: FutureBuilder(
+        future: AuthService.instance.currentUser(),
+        builder: (context, userSnap) {
+          final providerId = userSnap.data?.id ?? AppConstants.demoProviderId;
+          return StreamBuilder<Job>(
+            stream: JobService.instance.watchAllChanges(),
+            builder: (context, _) => _buildBody(context, providerId),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, String providerId) {
     return FutureBuilder<ProviderAnalytics>(
-      future: AnalyticsService.instance.load(_providerId),
+      future: AnalyticsService.instance.load(providerId),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const LoadingWidget(label: 'Loading earnings...');
@@ -63,7 +67,7 @@ class EarningsScreen extends StatelessWidget {
         }
 
         final completedJobs = JobService.instance.completedJobsForProvider(
-          _providerId,
+          providerId,
         );
         return ListView(
           padding: const EdgeInsets.all(20),

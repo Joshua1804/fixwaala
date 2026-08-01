@@ -1,7 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide GeoPoint;
+import 'package:cloud_firestore/cloud_firestore.dart' as fs show GeoPoint;
 import 'package:flutter/foundation.dart';
 
 import '../../../core/models/enums.dart';
+import '../../../core/models/user_model.dart' show GeoPoint;
 import '../../../core/services/firebase_service.dart';
 import '../models/ticket_model.dart';
 
@@ -18,6 +20,13 @@ class TicketService {
   bool get _live => FirebaseService.instance.isInitialized;
   CollectionReference<Map<String, dynamic>> get _col =>
       FirebaseService.instance.firestore.collection('tickets');
+
+  /// Clears all in-memory state. Test-only.
+  @visibleForTesting
+  void resetForTesting() {
+    _memStore.clear();
+    _seq = 0;
+  }
 
   // ── Create ──────────────────────────────────────────────────────
 
@@ -149,10 +158,27 @@ class TicketService {
   }
 
   /// Real-time stream of all tickets waiting to be matched/accepted.
-  Stream<List<Ticket>> watchMatchingTickets() {
+  ///
+  /// When [categories] is non-empty, results are restricted to tickets
+  /// whose `category` is one of them (a provider's skill set) — this is
+  /// the Firestore-side half of geo-broadcast's provider-pull query; the
+  /// caller (see [GeoBroadcastService.watchNearbyMatchingTickets]) applies
+  /// the radius filter client-side on top of this.
+  Stream<List<Ticket>> watchMatchingTickets({
+    List<ServiceCategory> categories = const [],
+  }) {
     if (_live) {
-      return _col
-          .where('status', isEqualTo: TicketStatus.matching.name)
+      Query<Map<String, dynamic>> query = _col.where(
+        'status',
+        isEqualTo: TicketStatus.matching.name,
+      );
+      if (categories.isNotEmpty) {
+        query = query.where(
+          'category',
+          whereIn: categories.map((c) => c.name).toList(),
+        );
+      }
+      return query
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map(
@@ -161,10 +187,32 @@ class TicketService {
     } else {
       final list =
           _memStore.values
-              .where((t) => t.status == TicketStatus.matching)
+              .where(
+                (t) =>
+                    t.status == TicketStatus.matching &&
+                    (categories.isEmpty || categories.contains(t.category)),
+              )
               .toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return Stream.value(list);
+    }
+  }
+
+  /// Advances a ticket's search radius during geo-broadcast expansion.
+  Future<void> updateBroadcastRadius(String ticketId, double radiusKm) async {
+    if (_live) {
+      await _col.doc(ticketId).update({
+        'broadcastRadiusKm': radiusKm,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+    } else {
+      final existing = _memStore[ticketId];
+      if (existing != null) {
+        _memStore[ticketId] = existing.copyWith(
+          broadcastRadiusKm: radiusKm,
+          updatedAt: DateTime.now(),
+        );
+      }
     }
   }
 
@@ -181,6 +229,58 @@ class TicketService {
       if (existing != null) {
         _memStore[ticketId] = existing.copyWith(
           status: status,
+          updatedAt: DateTime.now(),
+        );
+      }
+    }
+  }
+
+  /// Opens the customer's candidate-review window: flips to
+  /// [TicketStatus.awaitingCustomerConfirmation] and starts the shared
+  /// countdown. Called once, when a ticket's first candidate accepts.
+  Future<void> openCandidateWindow(String ticketId, DateTime expiresAt) async {
+    if (_live) {
+      await _col.doc(ticketId).update({
+        'status': TicketStatus.awaitingCustomerConfirmation.name,
+        'candidateWindowExpiresAt': Timestamp.fromDate(expiresAt),
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+    } else {
+      final existing = _memStore[ticketId];
+      if (existing != null) {
+        _memStore[ticketId] = existing.copyWith(
+          status: TicketStatus.awaitingCustomerConfirmation,
+          candidateWindowExpiresAt: expiresAt,
+          updatedAt: DateTime.now(),
+        );
+      }
+    }
+  }
+
+  /// Reveals the exact location to the confirmed provider and assigns them
+  /// to the ticket.
+  Future<void> assignProvider({
+    required String ticketId,
+    required String providerId,
+    required GeoPoint exactLocation,
+  }) async {
+    if (_live) {
+      await _col.doc(ticketId).update({
+        'assignedProviderId': providerId,
+        'exactLocation': fs.GeoPoint(
+          exactLocation.latitude,
+          exactLocation.longitude,
+        ),
+        'status': TicketStatus.assigned.name,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+    } else {
+      final existing = _memStore[ticketId];
+      if (existing != null) {
+        _memStore[ticketId] = existing.copyWith(
+          assignedProviderId: providerId,
+          exactLocation: exactLocation,
+          status: TicketStatus.assigned,
           updatedAt: DateTime.now(),
         );
       }

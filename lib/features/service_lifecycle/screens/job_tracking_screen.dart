@@ -11,9 +11,12 @@ import '../../../core/widgets/loading_widget.dart';
 import '../../../core/widgets/service_category_ui.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/services/auth_service.dart';
+import '../../customer_ticket/models/ticket_model.dart';
+import '../../customer_ticket/services/ticket_service.dart';
 import '../models/job_model.dart';
 import '../services/job_service.dart';
 import '../widgets/job_status_ui.dart';
+import '../widgets/live_tracking_map.dart';
 
 /// Central live-status hub for the customer's confirmed job.
 ///
@@ -98,10 +101,30 @@ class _JobTrackingContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const trackableStatuses = {
+      JobStatus.accepted,
+      JobStatus.enRoute,
+      JobStatus.arrived,
+    };
+
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
         _ProviderCard(job: job),
+        if (trackableStatuses.contains(job.status)) ...[
+          const SizedBox(height: 16),
+          StreamBuilder<Ticket>(
+            stream: TicketService.instance.watchTicket(job.ticketId),
+            builder: (context, ticketSnap) {
+              final exactLocation = ticketSnap.data?.exactLocation;
+              if (exactLocation == null) return const SizedBox.shrink();
+              return LiveTrackingMap(
+                providerId: job.providerId,
+                customerLocation: exactLocation,
+              );
+            },
+          ),
+        ],
         const SizedBox(height: 20),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

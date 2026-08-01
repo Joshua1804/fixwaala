@@ -281,6 +281,34 @@ class AuthService {
         });
   }
 
+  // ── Provider presence ────────────────────────────────────────────
+
+  /// Overwrites the current (provider) user's `providerProfile` — used by
+  /// [ProviderPresenceService] to persist online status and live location
+  /// without going through the full onboarding flow.
+  Future<void> updateProviderProfile(ProviderProfile profile) async {
+    final current = _currentUser;
+    if (current == null) return;
+    final updated = current.copyWith(
+      providerProfile: profile,
+      updatedAt: DateTime.now(),
+    );
+    _currentUser = updated;
+
+    if (!_live) {
+      _userDb[updated.id] = updated;
+      return;
+    }
+
+    await FirebaseService.instance.firestore
+        .collection('users')
+        .doc(updated.id)
+        .update({
+          'providerProfile': profile.toMap(),
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+  }
+
   // ── Session ──────────────────────────────────────────────────────
 
   Future<AppUser?> currentUser() async {
@@ -308,6 +336,20 @@ class AuthService {
       _currentUser = null;
     }
     return _currentUser;
+  }
+
+  /// Looks up any user by id — used to show a provider's public profile to
+  /// a customer reviewing candidates, distinct from [currentUser] which
+  /// only ever resolves the signed-in session's own account.
+  Future<AppUser?> getUserById(String userId) async {
+    if (!_live) return _userDb[userId];
+
+    final doc = await FirebaseService.instance.firestore
+        .collection('users')
+        .doc(userId)
+        .get();
+    if (!doc.exists) return null;
+    return AppUser.fromMap(doc.data()!);
   }
 
   Future<void> signOut() async {

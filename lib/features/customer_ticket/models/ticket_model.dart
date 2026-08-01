@@ -18,6 +18,8 @@ class Ticket {
   final String? assignedProviderId;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final double broadcastRadiusKm;
+  final DateTime? candidateWindowExpiresAt;
 
   const Ticket({
     required this.id,
@@ -34,6 +36,8 @@ class Ticket {
     this.addressLine,
     this.assignedProviderId,
     this.updatedAt,
+    this.broadcastRadiusKm = 5,
+    this.candidateWindowExpiresAt,
   });
 
   /// Whether this ticket is still "live" (not yet finished or cancelled).
@@ -49,6 +53,9 @@ class Ticket {
     String? assignedProviderId,
     GeoPoint? exactLocation,
     DateTime? updatedAt,
+    double? broadcastRadiusKm,
+    DateTime? candidateWindowExpiresAt,
+    bool clearCandidateWindowExpiresAt = false,
   }) {
     return Ticket(
       id: id,
@@ -65,6 +72,10 @@ class Ticket {
       addressLine: addressLine,
       assignedProviderId: assignedProviderId ?? this.assignedProviderId,
       updatedAt: updatedAt ?? DateTime.now(),
+      broadcastRadiusKm: broadcastRadiusKm ?? this.broadcastRadiusKm,
+      candidateWindowExpiresAt: clearCandidateWindowExpiresAt
+          ? null
+          : (candidateWindowExpiresAt ?? this.candidateWindowExpiresAt),
     );
   }
 
@@ -90,6 +101,11 @@ class Ticket {
       'exactLocation': fs.GeoPoint(
         exactLocation!.latitude,
         exactLocation!.longitude,
+      ),
+    'broadcastRadiusKm': broadcastRadiusKm,
+    if (candidateWindowExpiresAt != null)
+      'candidateWindowExpiresAt': fs.Timestamp.fromDate(
+        candidateWindowExpiresAt!,
       ),
   };
 
@@ -123,6 +139,10 @@ class Ticket {
                 DateTime.now(),
       updatedAt: map['updatedAt'] is fs.Timestamp
           ? (map['updatedAt'] as fs.Timestamp).toDate()
+          : null,
+      broadcastRadiusKm: (map['broadcastRadiusKm'] as num?)?.toDouble() ?? 5,
+      candidateWindowExpiresAt: map['candidateWindowExpiresAt'] is fs.Timestamp
+          ? (map['candidateWindowExpiresAt'] as fs.Timestamp).toDate()
           : null,
     );
   }

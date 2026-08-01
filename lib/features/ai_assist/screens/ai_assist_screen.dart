@@ -41,8 +41,14 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
     });
   }
 
+  ServiceCategory? get _selectedCategory {
+    final category = _override ?? _result?.category;
+    return category == ServiceCategory.unknown ? null : category;
+  }
+
   void _confirm() {
-    final category = _override ?? _result?.category ?? ServiceCategory.unknown;
+    final category = _selectedCategory;
+    if (category == null) return;
     Navigator.of(context).pushNamed(
       RouteNames.ticketReview,
       arguments: {
@@ -87,7 +93,7 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
                         .map(
                           (c) => ChoiceChip(
                             label: Text(c.name),
-                            selected: (_override ?? _result?.category) == c,
+                            selected: _selectedCategory == c,
                             onSelected: (_) => setState(() => _override = c),
                           ),
                         )
@@ -97,8 +103,20 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
                   Text(
                     'Confidence: ${((_result?.confidence ?? 0) * 100).toStringAsFixed(0)}%',
                   ),
+                  if (_selectedCategory == null) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      "We couldn't auto-detect a category from your "
+                      'description. Please pick one above so a nearby '
+                      'provider can find your request.',
+                      style: TextStyle(color: AppColors.error, fontSize: 12),
+                    ),
+                  ],
                   const Spacer(),
-                  PrimaryButton(label: 'Confirm', onPressed: _confirm),
+                  PrimaryButton(
+                    label: 'Confirm',
+                    onPressed: _selectedCategory == null ? null : _confirm,
+                  ),
                 ],
               ),
             ),
