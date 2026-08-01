@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'package:flutter/material.dart';
 
 import '../../../core/models/enums.dart';
-import '../../../core/models/user_model.dart';
 import '../../../core/routes/route_names.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../ai_assist/models/clarifying_qa.dart';
@@ -34,10 +34,23 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
         throw StateError('Please sign in before submitting a request.');
       }
 
+      final location = await LocationService.instance.getCurrentLocation();
+      if (location == null) {
+        throw StateError(
+          'Could not get your location. Please enable location permissions and try again.',
+        );
+      }
+
       final category = ServiceCategory.values.firstWhere(
         (c) => c.name == (args['category'] ?? ''),
         orElse: () => ServiceCategory.unknown,
       );
+      if (category == ServiceCategory.unknown) {
+        throw StateError(
+          'Please choose a service category before submitting — this is '
+          'how nearby providers find your request.',
+        );
+      }
       final complexity = ProblemComplexity.values.firstWhere(
         (c) => c.name == (args['complexity'] ?? ''),
         orElse: () => ProblemComplexity.low,
@@ -50,7 +63,7 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
         imageUrls: List<String>.from(args['images'] ?? []),
         category: category,
         complexity: complexity,
-        approximateLocation: const GeoPoint(0, 0),
+        approximateLocation: location,
         status: TicketStatus.draft,
         createdAt: DateTime.now(),
         addressLine: args['address']?.toString(),
@@ -63,9 +76,12 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
             .toList(),
       );
 
-      await TicketService.instance.createTicket(draft);
+      final ticketId = await TicketService.instance.createTicket(draft);
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(RouteNames.matchingProgress);
+      Navigator.of(context).pushReplacementNamed(
+        RouteNames.matchingProgress,
+        arguments: ticketId,
+      );
     } on fs.FirebaseException catch (e) {
       if (!mounted) return;
       setState(() => _error = _friendlyFirestoreMessage(e));

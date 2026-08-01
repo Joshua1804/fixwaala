@@ -5,8 +5,10 @@ import '../../../core/routes/route_names.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/widgets/loading_widget.dart';
 import '../../../core/widgets/service_category_ui.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../auth/services/auth_service.dart';
 import '../models/job_model.dart';
 import '../services/job_service.dart';
 import '../widgets/job_status_ui.dart';
@@ -23,14 +25,19 @@ class ActiveJobsScreen extends StatefulWidget {
 class _ActiveJobsScreenState extends State<ActiveJobsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-
-  // NOTE: uses a shared demo provider id — see AppConstants.demoProviderId.
-  String get _providerId => AppConstants.demoProviderId;
+  String? _providerId;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadProviderId();
+  }
+
+  Future<void> _loadProviderId() async {
+    final user = await AuthService.instance.currentUser();
+    if (!mounted) return;
+    setState(() => _providerId = user?.id ?? AppConstants.demoProviderId);
   }
 
   @override
@@ -41,6 +48,7 @@ class _ActiveJobsScreenState extends State<ActiveJobsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final providerId = _providerId;
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Jobs'),
@@ -52,29 +60,36 @@ class _ActiveJobsScreenState extends State<ActiveJobsScreen>
           ],
         ),
       ),
-      body: StreamBuilder<Job>(
-        // Re-render whenever any job changes.
-        stream: JobService.instance.watchAllChanges(),
-        builder: (context, _) {
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _JobList(
-                jobs: JobService.instance.activeJobsForProvider(_providerId),
-                emptyIcon: Icons.work_off_rounded,
-                emptyTitle: 'No active jobs',
-                emptySubtitle: 'Go online to start receiving jobs.',
-              ),
-              _JobList(
-                jobs: JobService.instance.historyJobsForProvider(_providerId),
-                emptyIcon: Icons.checklist_rounded,
-                emptyTitle: 'No job history yet',
-                emptySubtitle: 'Finished and cancelled jobs show up here.',
-              ),
-            ],
-          );
-        },
-      ),
+      body: providerId == null
+          ? const LoadingWidget(label: 'Loading your jobs...')
+          : StreamBuilder<Job>(
+              // Re-render whenever any job changes.
+              stream: JobService.instance.watchAllChanges(),
+              builder: (context, _) {
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _JobList(
+                      jobs: JobService.instance.activeJobsForProvider(
+                        providerId,
+                      ),
+                      emptyIcon: Icons.work_off_rounded,
+                      emptyTitle: 'No active jobs',
+                      emptySubtitle: 'Go online to start receiving jobs.',
+                    ),
+                    _JobList(
+                      jobs: JobService.instance.historyJobsForProvider(
+                        providerId,
+                      ),
+                      emptyIcon: Icons.checklist_rounded,
+                      emptyTitle: 'No job history yet',
+                      emptySubtitle:
+                          'Finished and cancelled jobs show up here.',
+                    ),
+                  ],
+                );
+              },
+            ),
     );
   }
 }

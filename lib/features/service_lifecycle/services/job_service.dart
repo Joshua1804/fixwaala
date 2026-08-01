@@ -49,13 +49,18 @@ class JobService {
   Future<void> initialize() async {
     if (!_live) return;
     await _liveSub?.cancel();
-    _liveSub = _col.snapshots().listen((snapshot) {
-      for (final change in snapshot.docChanges) {
-        final job = Job.fromMap(change.doc.data()!);
-        _jobs[job.jobId] = job;
-        _controller.add(job);
-      }
-    });
+    _liveSub = _col.snapshots().listen(
+      (snapshot) {
+        for (final change in snapshot.docChanges) {
+          final job = Job.fromMap(change.doc.data()!);
+          _jobs[job.jobId] = job;
+          _controller.add(job);
+        }
+      },
+      onError: (Object error) {
+        debugPrint('[JobService] Firestore jobs listener error: $error');
+      },
+    );
   }
 
   Future<void> _persist(Job job) async {

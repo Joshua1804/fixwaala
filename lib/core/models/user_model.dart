@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart' as fs;
+
 import 'enums.dart';
 
 /// A customer's onboarding profile — collected once, right after email
@@ -36,29 +38,74 @@ class ProviderProfile {
   final int? experienceYears;
   final String? serviceArea;
   final String? availability;
+  final bool online;
+  final GeoPoint? liveLocation;
+  final DateTime? locationUpdatedAt;
 
   const ProviderProfile({
     this.skills = const [],
     this.experienceYears,
     this.serviceArea,
     this.availability,
+    this.online = false,
+    this.liveLocation,
+    this.locationUpdatedAt,
   });
 
-  factory ProviderProfile.fromMap(Map<String, dynamic> map) => ProviderProfile(
-    skills: (map['skills'] as List<dynamic>? ?? [])
-        .map((s) => ServiceCategory.values.byName(s as String))
-        .toList(),
-    experienceYears: map['experienceYears'] as int?,
-    serviceArea: map['serviceArea'] as String?,
-    availability: map['availability'] as String?,
-  );
+  factory ProviderProfile.fromMap(Map<String, dynamic> map) {
+    final liveLoc = map['liveLocation'];
+    final locationUpdatedAt = map['locationUpdatedAt'];
+    return ProviderProfile(
+      skills: (map['skills'] as List<dynamic>? ?? [])
+          .map((s) => ServiceCategory.values.byName(s as String))
+          .toList(),
+      experienceYears: map['experienceYears'] as int?,
+      serviceArea: map['serviceArea'] as String?,
+      availability: map['availability'] as String?,
+      online: map['online'] as bool? ?? false,
+      liveLocation: liveLoc is fs.GeoPoint
+          ? GeoPoint(liveLoc.latitude, liveLoc.longitude)
+          : null,
+      locationUpdatedAt: locationUpdatedAt is fs.Timestamp
+          ? locationUpdatedAt.toDate()
+          : null,
+    );
+  }
 
   Map<String, dynamic> toMap() => {
     'skills': skills.map((s) => s.name).toList(),
     'experienceYears': experienceYears,
     'serviceArea': serviceArea,
     'availability': availability,
+    'online': online,
+    if (liveLocation != null)
+      'liveLocation': fs.GeoPoint(
+        liveLocation!.latitude,
+        liveLocation!.longitude,
+      ),
+    if (locationUpdatedAt != null)
+      'locationUpdatedAt': fs.Timestamp.fromDate(locationUpdatedAt!),
   };
+
+  ProviderProfile copyWith({
+    List<ServiceCategory>? skills,
+    int? experienceYears,
+    String? serviceArea,
+    String? availability,
+    bool? online,
+    GeoPoint? liveLocation,
+    DateTime? locationUpdatedAt,
+  }) {
+    return ProviderProfile(
+      skills: skills ?? this.skills,
+      experienceYears: experienceYears ?? this.experienceYears,
+      serviceArea: serviceArea ?? this.serviceArea,
+      availability: availability ?? this.availability,
+      online: online ?? this.online,
+      liveLocation: liveLocation ?? this.liveLocation,
+      locationUpdatedAt: locationUpdatedAt ?? this.locationUpdatedAt,
+    );
+  }
 }
 
 /// A Fixwaala account. One document per user in Firestore's `users`

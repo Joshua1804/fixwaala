@@ -39,6 +39,7 @@ import '../../features/service_lifecycle/screens/job_tracking_screen.dart';
 import '../../features/service_lifecycle/screens/provider_inspection_estimate_screen.dart';
 import '../../features/service_lifecycle/screens/status_update_screen.dart';
 import '../../features/trust_gated_matching/screens/provider_opportunity_screen.dart';
+import '../../features/trust_gated_matching/screens/provider_profile_screen.dart';
 import '../../features/trust_gated_matching/screens/provider_review_screen.dart';
 import '../../home/customer_home_screen.dart';
 import '../../home/provider_home_screen.dart';
@@ -102,6 +103,8 @@ class AppRouter {
         return _page(const ProviderReviewScreen(), settings);
       case RouteNames.providerOpportunity:
         return _page(const ProviderOpportunityScreen(), settings);
+      case RouteNames.candidateProviderProfile:
+        return _page(const ProviderProfileScreen(), settings);
 
       // Module 7
       case RouteNames.jobTracking:

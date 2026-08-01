@@ -4,6 +4,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/loading_widget.dart';
+import '../../auth/services/auth_service.dart';
 import '../../service_lifecycle/models/job_model.dart';
 import '../../service_lifecycle/services/job_service.dart';
 import '../services/analytics_service.dart';
@@ -15,23 +16,26 @@ import '../services/trust_score_calculator.dart';
 class TrustScoreScreen extends StatelessWidget {
   const TrustScoreScreen({super.key});
 
-  // NOTE: uses a shared demo provider id — see AppConstants.demoProviderId.
-  String get _providerId => AppConstants.demoProviderId;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Trust score')),
-      body: StreamBuilder<Job>(
-        stream: JobService.instance.watchAllChanges(),
-        builder: (context, _) => _buildBody(context),
+      body: FutureBuilder(
+        future: AuthService.instance.currentUser(),
+        builder: (context, userSnap) {
+          final providerId = userSnap.data?.id ?? AppConstants.demoProviderId;
+          return StreamBuilder<Job>(
+            stream: JobService.instance.watchAllChanges(),
+            builder: (context, _) => _buildBody(context, providerId),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, String providerId) {
     return FutureBuilder<TrustScoreResult>(
-      future: AnalyticsService.instance.trustScore(_providerId),
+      future: AnalyticsService.instance.trustScore(providerId),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const LoadingWidget(label: 'Calculating your trust score...');

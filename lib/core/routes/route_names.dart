@@ -35,6 +35,7 @@ class RouteNames {
   // Module 6 - Trust-gated matching
   static const providerReview = '/match/review';
   static const providerOpportunity = '/match/opportunity';
+  static const candidateProviderProfile = '/match/review/provider-profile';
 
   // Module 7 - Service lifecycle
   static const jobTracking = '/job/track';

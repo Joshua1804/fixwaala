@@ -56,6 +56,9 @@ class Ticket {
     String? assignedProviderId,
     GeoPoint? exactLocation,
     DateTime? updatedAt,
+    double? broadcastRadiusKm,
+    DateTime? candidateWindowExpiresAt,
+    bool clearCandidateWindowExpiresAt = false,
   }) {
     return Ticket(
       id: id,
