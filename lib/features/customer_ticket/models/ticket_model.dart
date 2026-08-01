@@ -22,6 +22,8 @@ class Ticket {
   final List<ClarifyingQa> clarifyingQa;
   final String? aiSummary;
   final List<String> recommendedEquipment;
+  final double broadcastRadiusKm;
+  final DateTime? candidateWindowExpiresAt;
 
   const Ticket({
     required this.id,
@@ -41,6 +43,8 @@ class Ticket {
     this.clarifyingQa = const [],
     this.aiSummary,
     this.recommendedEquipment = const [],
+    this.broadcastRadiusKm = 5,
+    this.candidateWindowExpiresAt,
   });
 
   /// Whether this ticket is still "live" (not yet finished or cancelled).
@@ -78,6 +82,10 @@ class Ticket {
       clarifyingQa: clarifyingQa,
       aiSummary: aiSummary,
       recommendedEquipment: recommendedEquipment,
+      broadcastRadiusKm: broadcastRadiusKm ?? this.broadcastRadiusKm,
+      candidateWindowExpiresAt: clearCandidateWindowExpiresAt
+          ? null
+          : (candidateWindowExpiresAt ?? this.candidateWindowExpiresAt),
     );
   }
 
@@ -108,6 +116,11 @@ class Ticket {
     if (aiSummary != null && aiSummary!.trim().isNotEmpty)
       'aiSummary': aiSummary,
     'recommendedEquipment': recommendedEquipment,
+    'broadcastRadiusKm': broadcastRadiusKm,
+    if (candidateWindowExpiresAt != null)
+      'candidateWindowExpiresAt': fs.Timestamp.fromDate(
+        candidateWindowExpiresAt!,
+      ),
   };
 
   factory Ticket.fromMap(Map<String, dynamic> map) {
@@ -148,6 +161,10 @@ class Ticket {
       recommendedEquipment: List<String>.from(
         map['recommendedEquipment'] ?? [],
       ),
+      broadcastRadiusKm: (map['broadcastRadiusKm'] as num?)?.toDouble() ?? 5,
+      candidateWindowExpiresAt: map['candidateWindowExpiresAt'] is fs.Timestamp
+          ? (map['candidateWindowExpiresAt'] as fs.Timestamp).toDate()
+          : null,
     );
   }
 }
