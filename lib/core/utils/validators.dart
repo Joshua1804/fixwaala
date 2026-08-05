@@ -8,15 +8,6 @@ class Validators {
     return null;
   }
 
-  static String? aadhaar(String? value) {
-    if (value == null) return 'Aadhaar required';
-    final digits = value.replaceAll(' ', '');
-    if (digits.length != 12 || !RegExp(r'^\d+$').hasMatch(digits)) {
-      return 'Aadhaar must be 12 digits';
-    }
-    return null;
-  }
-
   static String? required(String? value, {String field = 'This field'}) {
     if (value == null || value.trim().isEmpty) return '$field is required';
     return null;

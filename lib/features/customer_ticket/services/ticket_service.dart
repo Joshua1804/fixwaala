@@ -21,6 +21,12 @@ class TicketService {
   CollectionReference<Map<String, dynamic>> get _col =>
       FirebaseService.instance.firestore.collection('tickets');
 
+  /// Redacted projections of tickets currently in [TicketStatus.matching].
+  /// This is the only ticket data an unassigned provider can read — see
+  /// [Ticket.toBroadcastMap] and the `openTickets` rule.
+  CollectionReference<Map<String, dynamic>> get _openCol =>
+      FirebaseService.instance.firestore.collection('openTickets');
+
   /// Clears all in-memory state. Test-only.
   @visibleForTesting
   void resetForTesting() {
@@ -49,19 +55,16 @@ class TicketService {
         aiSummary: draft.aiSummary,
         recommendedEquipment: draft.recommendedEquipment,
       );
-      try {
-        await docRef.set(ticket.toMap());
-        return docRef.id;
-      } on FirebaseException catch (e) {
-        if (kDebugMode && e.code == 'permission-denied') {
-          debugPrint(
-            '[TicketService] Firestore denied ticket create; using debug '
-            'simulation fallback. Update Firestore rules before release.',
-          );
-          return _createInMemory(draft);
-        }
-        rethrow;
-      }
+      // Both documents in one batch. Written as two sequential `set` calls,
+      // a rejected projection left the private ticket behind as an orphan
+      // that no provider could ever discover.
+      final batch = FirebaseService.instance.firestore.batch();
+      batch.set(docRef, ticket.toMap());
+      // The redacted copy is what nearby providers discover; it carries no
+      // exact address, street line, or full customer name.
+      batch.set(_openCol.doc(docRef.id), ticket.toBroadcastMap());
+      await batch.commit();
+      return docRef.id;
     } else {
       return _createInMemory(draft);
     }
@@ -102,8 +105,16 @@ class TicketService {
           .where((s) => s.exists)
           .map((snap) => Ticket.fromMap(snap.data()!));
     } else {
-      // Emit current value once.
-      return Stream.value(_memStore[ticketId]!);
+      final ticket = _memStore[ticketId];
+      if (ticket == null) {
+        // Previously `_memStore[ticketId]!`, which threw synchronously the
+        // moment a caller passed an id this store had never seen — so callers
+        // wrapped it in try/catch instead of the stream simply erroring.
+        // Reporting it through the stream lets AsyncStateBuilder show a real
+        // message with a retry.
+        return Stream.error(StateError('Ticket $ticketId no longer exists.'));
+      }
+      return Stream.value(ticket);
     }
   }
 
@@ -166,8 +177,13 @@ class TicketService {
   Stream<List<Ticket>> watchMatchingTickets({
     List<ServiceCategory> categories = const [],
   }) {
+    // An empty skill set used to skip the `whereIn` filter entirely, so a
+    // provider who had selected no skills was broadcast *every* category's
+    // tickets — the opposite of the intent.
+    if (categories.isEmpty) return Stream.value(const []);
+
     if (_live) {
-      Query<Map<String, dynamic>> query = _col.where(
+      Query<Map<String, dynamic>> query = _openCol.where(
         'status',
         isEqualTo: TicketStatus.matching.name,
       );
@@ -189,7 +205,7 @@ class TicketService {
               .where(
                 (t) =>
                     t.status == TicketStatus.matching &&
-                    (categories.isEmpty || categories.contains(t.category)),
+                    categories.contains(t.category),
               )
               .toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -200,9 +216,16 @@ class TicketService {
   /// Advances a ticket's search radius during geo-broadcast expansion.
   Future<void> updateBroadcastRadius(String ticketId, double radiusKm) async {
     if (_live) {
+      final now = Timestamp.fromDate(DateTime.now());
       await _col.doc(ticketId).update({
         'broadcastRadiusKm': radiusKm,
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
+        'updatedAt': now,
+      });
+      // Targeted mirror rather than a full republish — expansion runs on a
+      // timer and does not need to re-read the ticket each tick.
+      await _openCol.doc(ticketId).update({
+        'broadcastRadiusKm': radiusKm,
+        'updatedAt': now,
       });
     } else {
       final existing = _memStore[ticketId];
@@ -215,6 +238,24 @@ class TicketService {
     }
   }
 
+  /// Keeps `openTickets/{id}` in step with the private ticket.
+  ///
+  /// A ticket is discoverable exactly while it is matching: republished when
+  /// it (re-)enters that state, removed the moment it leaves. Removing it is
+  /// what stops a provider from continuing to see a request that has already
+  /// been assigned to someone else.
+  Future<void> _syncBroadcast(String ticketId) async {
+    if (!_live) return;
+    final doc = await _col.doc(ticketId).get();
+    if (!doc.exists || doc.data() == null) return;
+    final ticket = Ticket.fromMap(doc.data()!);
+    if (ticket.status == TicketStatus.matching) {
+      await _openCol.doc(ticketId).set(ticket.toBroadcastMap());
+    } else {
+      await _openCol.doc(ticketId).delete();
+    }
+  }
+
   // ── Update status ──────────────────────────────────────────────
 
   Future<void> updateStatus(String ticketId, TicketStatus status) async {
@@ -223,6 +264,7 @@ class TicketService {
         'status': status.name,
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
+      await _syncBroadcast(ticketId);
     } else {
       final existing = _memStore[ticketId];
       if (existing != null) {
@@ -244,6 +286,7 @@ class TicketService {
         'candidateWindowExpiresAt': Timestamp.fromDate(expiresAt),
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
+      await _syncBroadcast(ticketId);
     } else {
       final existing = _memStore[ticketId];
       if (existing != null) {
@@ -273,6 +316,7 @@ class TicketService {
         'status': TicketStatus.assigned.name,
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
+      await _syncBroadcast(ticketId);
     } else {
       final existing = _memStore[ticketId];
       if (existing != null) {

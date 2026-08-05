@@ -63,10 +63,11 @@ class AiClassifierService {
     required String description,
     required List<String> imageUrls,
   }) async {
-    final aiResult = await GeminiAiService.instance.classifyAndGenerateQuestions(
-      description: description,
-      imageUrls: imageUrls,
-    );
+    final aiResult = await GeminiAiService.instance
+        .classifyAndGenerateQuestions(
+          description: description,
+          imageUrls: imageUrls,
+        );
     if (aiResult == null) {
       return classifyByRules(description);
     }

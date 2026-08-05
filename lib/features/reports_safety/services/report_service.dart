@@ -2,16 +2,25 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart' show CollectionReference;
+
 import '../../../core/models/enums.dart';
+import '../../../core/services/firebase_service.dart';
 import '../../service_lifecycle/services/job_service.dart';
 import '../models/report_model.dart';
 
 /// Reports, Safety & Disputes (Module 11).
 ///
-/// Reports and safety alerts are visible to the Admin Panel (Module 12) for
-/// review and moderation. Severity/urgency is surfaced to admins, but
-/// account restriction always remains an explicit admin decision — nothing
-/// here auto-suspends anyone.
+/// **These records were in-memory only.** A customer's SOS existed solely in
+/// the RAM of the device that raised it and was gone on restart — while the
+/// screen told them "our admin team has been alerted". Nothing was ever sent
+/// anywhere. Telling someone in distress that help is coming when no message
+/// left the handset is the most serious failure the app had.
+///
+/// Everything now persists to Firestore, which is the contract with the
+/// separate admin website: the app **creates** records, the website reads and
+/// resolves them. `firestore.rules` enforces exactly that split — a reporter
+/// may file and read their own submissions and nothing else.
 class ReportService {
   ReportService._();
   static final ReportService instance = ReportService._();
@@ -19,6 +28,14 @@ class ReportService {
   final List<Report> _reports = [];
   final List<SafetyAlert> _safetyAlerts = [];
   final StreamController<void> _changes = StreamController<void>.broadcast();
+
+  bool get _live => FirebaseService.instance.isInitialized;
+
+  CollectionReference<Map<String, dynamic>> get _reportsCol =>
+      FirebaseService.instance.firestore.collection('reports');
+
+  CollectionReference<Map<String, dynamic>> get _alertsCol =>
+      FirebaseService.instance.firestore.collection('safetyAlerts');
 
   /// Emits whenever a report or safety alert is created or updated — the
   /// Admin Panel's Reports and Safety Alerts screens listen to this so new
@@ -57,6 +74,13 @@ class ReportService {
       jobId: jobId,
     );
     _reports.add(report);
+
+    // Persist before flagging the job, so a failed write surfaces to the
+    // caller rather than leaving a flagged job with no report behind it.
+    if (_live) {
+      await _reportsCol.doc(report.id).set(report.toMap());
+    }
+
     if (jobId != null) {
       await JobService.instance.flagReport(jobId);
     }
@@ -77,6 +101,14 @@ class ReportService {
       raisedAt: DateTime.now(),
     );
     _safetyAlerts.add(alert);
+
+    // An SOS that does not reach the server has not happened. This write is
+    // awaited and its failure propagates, so the screen can tell the user to
+    // call emergency services directly instead of silently claiming success.
+    if (_live) {
+      await _alertsCol.doc(alert.id).set(alert.toMap());
+    }
+
     if (jobId != null) {
       await JobService.instance.flagSafetyAlert(jobId);
     }

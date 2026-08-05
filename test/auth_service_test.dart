@@ -34,18 +34,6 @@ void main() {
       expect(user.role, UserRole.provider);
     });
 
-    test('rejects registering as admin', () async {
-      expect(
-        () => AuthService.instance.register(
-          name: 'Sneaky',
-          email: 'sneaky@example.com',
-          password: 'password123',
-          role: UserRole.admin,
-        ),
-        throwsArgumentError,
-      );
-    });
-
     test('rejects a duplicate email', () async {
       await AuthService.instance.register(
         name: 'First',

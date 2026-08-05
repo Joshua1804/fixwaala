@@ -16,19 +16,20 @@ import '../features/customer_ticket/widgets/ticket_status_ui.dart';
 import '../features/service_lifecycle/models/job_model.dart';
 import '../features/service_lifecycle/services/job_service.dart';
 import '../features/service_lifecycle/widgets/job_status_ui.dart';
-import '../core/services/app_preferences_service.dart';
-import '../core/widgets/custom_button.dart';
 import '../core/widgets/empty_state_widget.dart';
 import '../core/widgets/floating_nav_bar.dart';
 import '../core/widgets/hero_banner.dart';
 import '../core/widgets/loading_widget.dart';
-import '../core/widgets/offer_card.dart';
 import '../core/widgets/popular_service_card.dart';
 import '../core/widgets/section_header.dart';
 import '../core/widgets/service_category_tile.dart';
 import '../core/widgets/service_category_ui.dart';
 import '../core/widgets/status_badge.dart';
 import '../core/widgets/trust_point_tile.dart';
+import '../core/widgets/profile/profile_settings_scaffold.dart';
+import '../core/widgets/profile/profile_tile.dart';
+import '../core/utils/formatting.dart';
+import '../core/widgets/cancel_request_action.dart';
 
 /// Customer home screen with bottom navigation, gradient AppBar greeting,
 /// service category grid, active ticket preview, and quick actions.
@@ -170,41 +171,37 @@ const _realHomeCategories = [
   ServiceCategory.unknown,
 ];
 
-const _popularServices = [
-  (
-    icon: Icons.hvac_rounded,
-    title: 'AC Repair & Service',
-    description: 'Diagnose, repair, or service any AC unit',
-    price: 'From ₹399',
-    rating: 4.7,
-  ),
+/// Common problems, used as shortcuts into ticket creation with the category
+/// pre-selected.
+///
+/// These previously carried invented starting prices ("From ₹399") and
+/// invented ratings (4.7), none of which the system produces or honours, plus
+/// a "Deep Home Cleaning" entry for a service the app cannot fulfil at all.
+/// They are now purely navigational.
+const _commonProblems = [
   (
     icon: Icons.plumbing,
-    title: 'Pipe Leak Fix',
-    description: 'Quick fixes for leaks and clogged pipes',
-    price: 'From ₹249',
-    rating: 4.8,
+    title: 'Leaks & blocked drains',
+    description: 'Dripping taps, burst pipes, slow drains',
+    category: ServiceCategory.plumber,
   ),
   (
     icon: Icons.electrical_services,
-    title: 'Switchboard & Wiring',
-    description: 'Safe electrical repairs by certified pros',
-    price: 'From ₹299',
-    rating: 4.6,
+    title: 'Switches & wiring',
+    description: 'Dead sockets, tripping breakers, new points',
+    category: ServiceCategory.electrician,
   ),
   (
     icon: Icons.chair_alt,
-    title: 'Furniture Repair',
-    description: 'Fix wobbly chairs, doors, and cabinets',
-    price: 'From ₹349',
-    rating: 4.5,
+    title: 'Furniture & fittings',
+    description: 'Wobbly chairs, sticking doors, cabinets',
+    category: ServiceCategory.carpenter,
   ),
   (
-    icon: Icons.cleaning_services_rounded,
-    title: 'Deep Home Cleaning',
-    description: 'Thorough cleaning for kitchens and bathrooms',
-    price: 'From ₹599',
-    rating: 4.9,
+    icon: Icons.hvac_rounded,
+    title: 'Something else',
+    description: "Describe it and we'll work out who to send",
+    category: ServiceCategory.unknown,
   ),
 ];
 
@@ -372,7 +369,7 @@ class _HomeTab extends StatelessWidget {
               child: HeroBanner(
                 headline: 'Reliable help for every home repair',
                 subheadline:
-                    'Verified professionals, transparent pricing, and safe bookings.',
+                    'Rated professionals, transparent pricing, and safe bookings.',
                 ctaLabel: 'Request a repair',
                 onCtaTap: () =>
                     Navigator.of(context).pushNamed(RouteNames.createTicket),
@@ -447,10 +444,10 @@ class _HomeTab extends StatelessWidget {
                 child: const Column(
                   children: [
                     TrustPointTile(
-                      icon: Icons.verified_user_rounded,
-                      title: 'Verified professionals',
+                      icon: Icons.star_rounded,
+                      title: 'Rated by real customers',
                       description:
-                          'Every provider completes ID and background verification before taking jobs.',
+                          'See every provider\'s rating and completed job count before you choose.',
                     ),
                     SizedBox(height: 16),
                     TrustPointTile(
@@ -480,21 +477,6 @@ class _HomeTab extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
               child: const SectionHeader(title: 'Offers for you'),
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: FadeTransition(
-            opacity: fadeAnimation,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: OfferCard(
-                title: '20% off your first repair',
-                subtitle: 'Valid for new customers on any service category.',
-                badgeLabel: 'NEW',
-                onTap: () =>
-                    Navigator.of(context).pushNamed(RouteNames.createTicket),
-              ),
             ),
           ),
         ),
@@ -541,19 +523,33 @@ class _CategoryGrid extends StatefulWidget {
 class _CategoryGridState extends State<_CategoryGrid> {
   int? _selectedIndex;
 
-  void _handleTap(int index) {
+  /// Carries the tapped category into ticket creation.
+  ///
+  /// This used to navigate with no arguments, so a customer who picked
+  /// "Plumbing" then watched the AI re-derive the category from their free
+  /// text — and sometimes disagree with them.
+  void _handleTap(int index, ServiceCategory category) {
     setState(() => _selectedIndex = index);
-    Navigator.of(context).pushNamed(RouteNames.createTicket).then((_) {
-      if (mounted) setState(() => _selectedIndex = null);
-    });
+    Navigator.of(context)
+        .pushNamed(RouteNames.createTicket, arguments: {'category': category})
+        .then((_) {
+          if (mounted) setState(() => _selectedIndex = null);
+        });
   }
 
   @override
   Widget build(BuildContext context) {
-    final tiles = <({String label, IconData icon})>[
+    // `kCosmeticOnlyCategoryTiles` ("Appliance Repair", "Cleaning") padded
+    // this grid to six tiles for a brief. Tapping them opened a generic
+    // request for a service the app has no category, no providers, and no way
+    // to fulfil — so they are gone.
+    final tiles = [
       for (final c in _realHomeCategories)
-        (label: ServiceCategoryUi.label(c), icon: ServiceCategoryUi.icon(c)),
-      ...kCosmeticOnlyCategoryTiles,
+        (
+          label: ServiceCategoryUi.label(c),
+          icon: ServiceCategoryUi.icon(c),
+          category: c,
+        ),
     ];
 
     return GridView.builder(
@@ -572,7 +568,7 @@ class _CategoryGridState extends State<_CategoryGrid> {
           label: tile.label,
           icon: tile.icon,
           selected: _selectedIndex == i,
-          onTap: () => _handleTap(i),
+          onTap: () => _handleTap(i, tile.category),
         );
       },
     );
@@ -586,16 +582,16 @@ class _PopularServicesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cards = _popularServices
+    final cards = _commonProblems
         .map(
           (s) => PopularServiceCard(
             icon: s.icon,
             title: s.title,
             description: s.description,
-            startingPrice: s.price,
-            rating: s.rating,
-            onTap: () =>
-                Navigator.of(context).pushNamed(RouteNames.createTicket),
+            onTap: () => Navigator.of(context).pushNamed(
+              RouteNames.createTicket,
+              arguments: {'category': s.category},
+            ),
           ),
         )
         .toList();
@@ -899,16 +895,26 @@ class _ActiveTicketsView extends StatelessWidget {
           );
         }
 
+        // The ticket behind the active job is already represented by
+        // _ActiveJobCard. Rendering it again showed the customer the same
+        // request twice, described in two different status vocabularies
+        // (JobStatus on one card, TicketStatus on the other).
+        final others = activeJob == null
+            ? active
+            : active.where((t) => t.id != activeJob.ticketId).toList();
+
+        // No RefreshIndicator here deliberately: this list is backed by a
+        // live Firestore stream, so a pull gesture would have nothing to
+        // re-fetch. A refresh control that does nothing is the same kind of
+        // theatre as a save button that does not save.
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-          itemCount: (activeJob != null ? 1 : 0) + active.length,
+          itemCount: (activeJob != null ? 1 : 0) + others.length,
           itemBuilder: (context, i) {
-            // Show active job card first
             if (activeJob != null && i == 0) {
               return _ActiveJobCard(job: activeJob);
             }
-            final ticketIndex = i - (activeJob != null ? 1 : 0);
-            final ticket = active[ticketIndex];
+            final ticket = others[i - (activeJob != null ? 1 : 0)];
             return _TicketCard(ticket: ticket);
           },
         );
@@ -943,12 +949,12 @@ class _HistoryTicketsView extends StatelessWidget {
         final allTickets = snapshot.data ?? [];
         final history = allTickets.where((t) => !t.isActive).toList();
 
-        // Also include completed/cancelled jobs from JobService
-        final pastJobs = JobService.instance.completedJobsForProvider(
-          customerId,
-        );
-
-        if (history.isEmpty && pastJobs.isEmpty) {
+        // This previously also called `completedJobsForProvider(customerId)` —
+        // a provider lookup handed a customer id, so it always returned an
+        // empty list, and the result was never rendered anyway. The tickets
+        // themselves are the history; they only started reaching a terminal
+        // status once job transitions began mirroring onto them.
+        if (history.isEmpty) {
           return const EmptyStateWidget(
             icon: Icons.history_rounded,
             title: 'No past tickets',
@@ -1098,7 +1104,7 @@ class _TicketCard extends StatelessWidget {
                 Icon(Icons.schedule, size: 14, color: AppColors.textHint),
                 const SizedBox(width: 4),
                 Text(
-                  _formatDate(ticket.createdAt),
+                  RelativeTime.format(ticket.createdAt),
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.textHint,
                   ),
@@ -1122,6 +1128,23 @@ class _TicketCard extends StatelessWidget {
                     ),
                   ),
                 ],
+                const Spacer(),
+                // A customer could not withdraw a request from anywhere in
+                // the app. Cancelling is only offered while the request has
+                // not yet been taken on by a provider.
+                if (!isHistory && _isCancellable(ticket.status))
+                  TextButton(
+                    onPressed: () =>
+                        CancelRequestAction.run(context, ticketId: ticket.id),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 0),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: Text('Cancel', style: AppTextStyles.caption),
+                  ),
               ],
             ),
           ],
@@ -1130,553 +1153,45 @@ class _TicketCard extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${dt.day}/${dt.month}/${dt.year}';
-  }
+  /// Cancelling is free before anyone is on the hook. Once a provider is
+  /// assigned and travelling, withdrawing is a job-level decision with a
+  /// cancellation policy attached, not a one-tap action on a list row.
+  static bool _isCancellable(TicketStatus status) =>
+      status == TicketStatus.matching ||
+      status == TicketStatus.awaitingCustomerConfirmation ||
+      status == TicketStatus.draft;
 }
 
-class _ProfileTab extends StatefulWidget {
+class _ProfileTab extends StatelessWidget {
   const _ProfileTab();
 
   @override
-  State<_ProfileTab> createState() => _ProfileTabState();
-}
-
-class _ProfileTabState extends State<_ProfileTab>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-  late TextEditingController _nameController;
-  late TextEditingController _phoneController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _nameController = TextEditingController();
-    _phoneController = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _nameController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textHint,
-          tabs: const [
-            Tab(text: 'Profile'),
-            Tab(text: 'Settings'),
-          ],
-        ),
-      ),
-      body: FutureBuilder<AppUser?>(
-        future: AuthService.instance.currentUser(),
-        builder: (context, snapshot) {
-          final user = snapshot.data;
-
-          if (user != null) {
-            _nameController.text = user.name ?? '';
-            _phoneController.text = user.phone ?? '';
-          }
-
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _ProfileContent(
-                user: user,
-                nameController: _nameController,
-                phoneController: _phoneController,
-              ),
-              _SettingsContent(user: user),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ProfileContent extends StatefulWidget {
-  final AppUser? user;
-  final TextEditingController nameController;
-  final TextEditingController phoneController;
-
-  const _ProfileContent({
-    required this.user,
-    required this.nameController,
-    required this.phoneController,
-  });
-
-  @override
-  State<_ProfileContent> createState() => _ProfileContentState();
-}
-
-class _ProfileContentState extends State<_ProfileContent> {
-  bool _isEditing = false;
-
-  void _handleSave() {
-    if (widget.user != null) {
-      widget.user!.copyWith(
-        name: widget.nameController.text,
-        phone: widget.phoneController.text,
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile updated successfully'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-
-      setState(() => _isEditing = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
-      children: [
-        // Profile header
-        Center(
-          child: Column(
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  size: 36,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                widget.user?.name ?? 'Customer User',
-                style: AppTextStyles.headlineSmall,
-              ),
-              if (widget.user?.email.isNotEmpty ?? false) ...[
-                const SizedBox(height: 2),
-                Text(widget.user!.email, style: AppTextStyles.bodyMedium),
-              ],
-              if (widget.user?.phone?.isNotEmpty ?? false) ...[
-                const SizedBox(height: 4),
-                Text(
-                  '+91 ${widget.user!.phone}',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 32),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Basic Information', style: AppTextStyles.titleLarge),
-            TextButton(
-              onPressed: () => setState(() => _isEditing = !_isEditing),
-              child: Text(_isEditing ? 'Cancel' : 'Edit'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildEditableField(
-          label: 'Name',
-          controller: widget.nameController,
-          enabled: _isEditing,
-          isDark: isDark,
-        ),
-        const SizedBox(height: 12),
-        _buildEditableField(
-          label: 'Phone',
-          controller: widget.phoneController,
-          enabled: _isEditing,
-          keyboardType: TextInputType.phone,
-          isDark: isDark,
-        ),
-        if (_isEditing) ...[
-          const SizedBox(height: 20),
-          PrimaryButton(label: 'Save Changes', onPressed: _handleSave),
-        ],
-        const SizedBox(height: 32),
-        _ProfileTile(
+    return ProfileSettingsScaffold(
+      fallbackName: 'Customer User',
+      notificationsSubtitle: 'Updates on your requests',
+      tilesBuilder: (context, user) => [
+        ProfileTile(
           icon: Icons.history_rounded,
           label: 'Order History',
           onTap: () => Navigator.of(context).pushNamed(RouteNames.myTickets),
         ),
-        _ProfileTile(
+        ProfileTile(
           icon: Icons.report_outlined,
           label: 'Report an Issue',
           onTap: () => Navigator.of(context).pushNamed(RouteNames.report),
         ),
-        _ProfileTile(
+        ProfileTile(
           icon: Icons.help_outline_rounded,
           label: 'Help & Support',
-          onTap: () {},
+          onTap: () => Navigator.of(context).pushNamed(RouteNames.help),
         ),
-        _ProfileTile(
+        ProfileTile(
           icon: Icons.info_outline_rounded,
           label: 'About Fixwaala',
-          onTap: () {},
+          onTap: () => Navigator.of(context).pushNamed(RouteNames.about),
         ),
       ],
-    );
-  }
-
-  Widget _buildEditableField({
-    required String label,
-    required TextEditingController controller,
-    required bool enabled,
-    required bool isDark,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          enabled: enabled,
-          keyboardType: keyboardType,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: enabled
-                ? (isDark ? AppColors.cardDark : AppColors.surface)
-                : AppColors.textHint.withValues(alpha: 0.05),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: AppColors.divider),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: AppColors.divider.withValues(alpha: 0.5),
-              ),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: AppColors.textHint.withValues(alpha: 0.1),
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-            hintText: label,
-            hintStyle: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textHint,
-            ),
-          ),
-          style: AppTextStyles.bodyMedium,
-        ),
-      ],
-    );
-  }
-}
-
-class _SettingsContent extends StatelessWidget {
-  final AppUser? user;
-
-  const _SettingsContent({required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
-      children: [
-        Text('App Preferences', style: AppTextStyles.titleLarge),
-        const SizedBox(height: 16),
-        _SettingsSection(
-          title: 'Theme',
-          icon: Icons.palette_outlined,
-          child: StreamBuilder<ThemeMode>(
-            stream: AppPreferencesService.instance.themeModeStream,
-            initialData: AppPreferencesService.instance.themeMode,
-            builder: (context, snapshot) {
-              final currentMode = snapshot.data ?? ThemeMode.system;
-              return Column(
-                children: [
-                  _buildThemeOption(
-                    context,
-                    'Light',
-                    ThemeMode.light,
-                    Icons.light_mode_rounded,
-                    currentMode == ThemeMode.light,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildThemeOption(
-                    context,
-                    'Dark',
-                    ThemeMode.dark,
-                    Icons.dark_mode_rounded,
-                    currentMode == ThemeMode.dark,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildThemeOption(
-                    context,
-                    'System',
-                    ThemeMode.system,
-                    Icons.brightness_auto_rounded,
-                    currentMode == ThemeMode.system,
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text('Notifications', style: AppTextStyles.titleLarge),
-        const SizedBox(height: 16),
-        _SettingsSection(
-          title: 'Push Notifications',
-          icon: Icons.notifications_outlined,
-          child: StreamBuilder<bool>(
-            stream: AppPreferencesService.instance.notificationsEnabledStream,
-            initialData: AppPreferencesService.instance.notificationsEnabled,
-            builder: (context, snapshot) {
-              final enabled = snapshot.data ?? true;
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Enable notifications',
-                        style: AppTextStyles.bodyLarge,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Updates on your requests',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Switch(
-                    value: enabled,
-                    onChanged: (value) {
-                      AppPreferencesService.instance.setNotificationsEnabled(
-                        value,
-                      );
-                    },
-                    activeThumbColor: AppColors.primary,
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text('Account', style: AppTextStyles.titleLarge),
-        const SizedBox(height: 16),
-        _ProfileTile(
-          icon: Icons.lock_outline_rounded,
-          label: 'Change Password',
-          onTap: () {},
-        ),
-        _ProfileTile(
-          icon: Icons.verified_user_outlined,
-          label: 'Email Verification Status',
-          onTap: () {},
-        ),
-        const SizedBox(height: 24),
-        Text('About', style: AppTextStyles.titleLarge),
-        const SizedBox(height: 16),
-        _ProfileTile(
-          icon: Icons.privacy_tip_outlined,
-          label: 'Privacy Policy',
-          onTap: () {},
-        ),
-        _ProfileTile(
-          icon: Icons.description_outlined,
-          label: 'Terms of Service',
-          onTap: () {},
-        ),
-        _ProfileTile(
-          icon: Icons.info_outline_rounded,
-          label: 'Version Info',
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Fixwaala'),
-                content: const Text('Version 1.0.0\n\nBuild: 1'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 24),
-        _ProfileTile(
-          icon: Icons.logout_rounded,
-          label: 'Sign Out',
-          isDestructive: true,
-          onTap: () => Navigator.of(
-            context,
-          ).pushReplacementNamed(RouteNames.roleSelection),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildThemeOption(
-    BuildContext context,
-    String label,
-    ThemeMode mode,
-    IconData icon,
-    bool isSelected,
-  ) {
-    return GestureDetector(
-      onTap: () => AppPreferencesService.instance.setThemeMode(mode),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : Colors.transparent,
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.divider,
-            width: isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: AppTextStyles.bodyLarge.copyWith(
-                color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              ),
-            ),
-            const Spacer(),
-            if (isSelected) Icon(Icons.check_rounded, color: AppColors.primary),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SettingsSection extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Widget child;
-
-  const _SettingsSection({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark
-              ? AppColors.glassBorderDark
-              : AppColors.divider.withValues(alpha: 0.5),
-        ),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _ProfileTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool isDestructive;
-
-  const _ProfileTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.isDestructive = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    final color = isDestructive
-        ? AppColors.error
-        : (isDark ? Colors.white : AppColors.textPrimary);
-
-    final iconColor = isDestructive ? AppColors.error : AppColors.primary;
-
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: (isDestructive ? AppColors.error : AppColors.primary)
-              .withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: iconColor, size: 20),
-      ),
-      title: Text(label, style: AppTextStyles.bodyLarge.copyWith(color: color)),
-      trailing: Icon(
-        Icons.chevron_right_rounded,
-        color: AppColors.textHint,
-        size: 20,
-      ),
     );
   }
 }

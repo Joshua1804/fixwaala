@@ -68,8 +68,9 @@ class TrustScoreCalculator {
   static String _noteFor(double score) {
     if (score >= 85) return 'Excellent — customers trust you highly.';
     if (score >= 70) return 'Good — keep up consistent, timely service.';
-    if (score >= 50)
+    if (score >= 50) {
       return 'Fair — faster responses and fewer cancellations will help.';
+    }
     return 'Needs improvement — focus on completing jobs reliably.';
   }
 }

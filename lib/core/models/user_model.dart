@@ -119,6 +119,13 @@ class AppUser {
   final bool emailVerified;
   final bool onboardingComplete;
   final AccountStatus accountStatus;
+
+  /// Whether an administrator has manually reviewed and approved this
+  /// provider. Written **only** by the admin website — the app seeds it to
+  /// `false` at registration and never writes it again. Drives the "Verified"
+  /// badge customers see when choosing a provider.
+  final bool isVerified;
+
   final CustomerProfile? customerProfile;
   final ProviderProfile? providerProfile;
   final DateTime createdAt;
@@ -134,6 +141,7 @@ class AppUser {
     this.emailVerified = false,
     this.onboardingComplete = false,
     this.accountStatus = AccountStatus.active,
+    this.isVerified = false,
     this.customerProfile,
     this.providerProfile,
     this.updatedAt,
@@ -151,6 +159,7 @@ class AppUser {
       accountStatus: AccountStatus.values.byName(
         map['accountStatus'] as String? ?? 'active',
       ),
+      isVerified: map['isVerified'] as bool? ?? false,
       customerProfile: map['customerProfile'] != null
           ? CustomerProfile.fromMap(
               Map<String, dynamic>.from(map['customerProfile'] as Map),
@@ -179,6 +188,8 @@ class AppUser {
     'emailVerified': emailVerified,
     'onboardingComplete': onboardingComplete,
     'accountStatus': accountStatus.name,
+    // Seeded false at creation; only the admin website updates it thereafter.
+    'isVerified': isVerified,
     if (customerProfile != null) 'customerProfile': customerProfile!.toMap(),
     if (providerProfile != null) 'providerProfile': providerProfile!.toMap(),
     'createdAt': createdAt.toIso8601String(),
@@ -191,6 +202,7 @@ class AppUser {
     bool? emailVerified,
     bool? onboardingComplete,
     AccountStatus? accountStatus,
+    bool? isVerified,
     CustomerProfile? customerProfile,
     ProviderProfile? providerProfile,
     DateTime? updatedAt,
@@ -205,6 +217,7 @@ class AppUser {
       emailVerified: emailVerified ?? this.emailVerified,
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
       accountStatus: accountStatus ?? this.accountStatus,
+      isVerified: isVerified ?? this.isVerified,
       customerProfile: customerProfile ?? this.customerProfile,
       providerProfile: providerProfile ?? this.providerProfile,
       updatedAt: updatedAt ?? DateTime.now(),

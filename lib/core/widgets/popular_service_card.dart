@@ -11,8 +11,14 @@ class PopularServiceCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String description;
-  final String startingPrice;
-  final double rating;
+
+  /// Optional. Omitted entirely rather than showing an invented figure —
+  /// the app has no pricing data, and a "From ₹399" that nothing honours is
+  /// consumer-protection exposure, not decoration.
+  final String? startingPrice;
+
+  /// Optional aggregate rating. Same reasoning: absent beats fabricated.
+  final double? rating;
   final VoidCallback onTap;
 
   const PopularServiceCard({
@@ -20,8 +26,8 @@ class PopularServiceCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.description,
-    required this.startingPrice,
-    required this.rating,
+    this.startingPrice,
+    this.rating,
     required this.onTap,
   });
 
@@ -72,26 +78,35 @@ class PopularServiceCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Icon(Icons.star_rounded, size: 16, color: AppColors.accent),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating.toStringAsFixed(1),
-                      style: AppTextStyles.labelMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      startingPrice,
-                      style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
+                if (rating != null || startingPrice != null) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      if (rating != null) ...[
+                        Icon(
+                          Icons.star_rounded,
+                          size: 16,
+                          color: AppColors.accent,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating!.toStringAsFixed(1),
+                          style: AppTextStyles.labelMedium.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      if (startingPrice != null)
+                        Text(
+                          startingPrice!,
+                          style: AppTextStyles.titleSmall.copyWith(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

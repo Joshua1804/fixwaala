@@ -123,13 +123,58 @@ class Ticket {
       ),
   };
 
+  /// The redacted view of this ticket that online providers are allowed to
+  /// see while it is still matching, stored at `openTickets/{id}`.
+  ///
+  /// Deliberately omits `exactLocation`, `addressLine`, and `customerName`.
+  /// A ticket has to be discoverable by nearby providers, but the full
+  /// document carries the customer's precise home coordinates — the exact
+  /// thing the product promises not to reveal until a provider is confirmed.
+  /// Providers get an approximate location and the problem details, nothing
+  /// that identifies or locates the household.
+  Map<String, dynamic> toBroadcastMap() => {
+    'id': id,
+    'customerId': customerId,
+    // First name only until someone is actually assigned. The full name was
+    // previously visible to every provider in range on every open ticket,
+    // which let anyone who registered as a provider harvest names and
+    // neighbourhoods at scale.
+    'customerFirstName': customerFirstName,
+    'description': description,
+    'imageUrls': imageUrls,
+    'category': category.name,
+    'complexity': complexity.name,
+    'approximateLocation': fs.GeoPoint(
+      approximateLocation.latitude,
+      approximateLocation.longitude,
+    ),
+    'status': status.name,
+    'createdAt': fs.Timestamp.fromDate(createdAt),
+    'updatedAt': fs.Timestamp.fromDate(updatedAt ?? DateTime.now()),
+    'clarifyingQa': clarifyingQa.map((qa) => qa.toMap()).toList(),
+    if (aiSummary != null && aiSummary!.trim().isNotEmpty)
+      'aiSummary': aiSummary,
+    'recommendedEquipment': recommendedEquipment,
+    'broadcastRadiusKm': broadcastRadiusKm,
+  };
+
+  /// The customer's given name, for display before assignment.
+  String get customerFirstName {
+    final trimmed = customerName.trim();
+    if (trimmed.isEmpty) return 'Customer';
+    return trimmed.split(RegExp(r'\s+')).first;
+  }
+
   factory Ticket.fromMap(Map<String, dynamic> map) {
     final approxLoc = map['approximateLocation'];
     final exactLoc = map['exactLocation'];
     return Ticket(
       id: map['id'] as String? ?? '',
       customerId: map['customerId'] as String? ?? '',
-      customerName: map['customerName'] as String? ?? '',
+      customerName:
+          map['customerName'] as String? ??
+          map['customerFirstName'] as String? ??
+          '',
       description: map['description'] as String? ?? '',
       imageUrls: List<String>.from(map['imageUrls'] ?? []),
       category: ServiceCategory.values.byName(

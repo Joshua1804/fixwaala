@@ -5,7 +5,9 @@ import '../../../core/models/enums.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/location_service.dart';
 import '../../customer_ticket/models/ticket_model.dart';
+import '../../../core/services/firebase_service.dart';
 import '../../customer_ticket/services/ticket_service.dart';
+import '../../trust_gated_matching/services/matching_service.dart';
 
 /// Expanding-radius geo-broadcast (Module 5). There is no push backend, so
 /// this is a two-sided pull design: the customer's device drives the
@@ -23,6 +25,15 @@ class GeoBroadcastService {
   /// [AppConstants.searchRadiiKm] as long as the ticket is still
   /// [TicketStatus.matching]. Once every tier has been tried with no
   /// candidate, the ticket is marked [TicketStatus.failed].
+  /// Radius expansion is server-owned once `expandBroadcastRadius`
+  /// (`functions/scheduled.js`) is actually deployed — not merely whenever
+  /// Firebase is configured, since that function requires the Blaze plan and
+  /// may not be deployed at all. See [AppConstants.scheduledFunctionsDeployed].
+  /// Running both would double-advance the tier and race the scheduled job.
+  bool get _serverOwnsExpansion =>
+      FirebaseService.instance.isInitialized &&
+      AppConstants.scheduledFunctionsDeployed;
+
   Stream<Ticket> runBroadcast(String ticketId) {
     late final StreamController<Ticket> controller;
     StreamSubscription<Ticket>? ticketSub;
@@ -55,10 +66,12 @@ class GeoBroadcastService {
         ticketSub = TicketService.instance
             .watchTicket(ticketId)
             .listen(controller.add, onError: controller.addError);
-        timer = Timer.periodic(
-          const Duration(seconds: AppConstants.broadcastTimeoutSeconds),
-          (_) => advance(),
-        );
+        if (!_serverOwnsExpansion) {
+          timer = Timer.periodic(
+            const Duration(seconds: AppConstants.broadcastTimeoutSeconds),
+            (_) => advance(),
+          );
+        }
       },
       onCancel: () {
         timer?.cancel();
@@ -77,11 +90,19 @@ class GeoBroadcastService {
   Stream<List<Ticket>> watchNearbyMatchingTickets({
     required List<ServiceCategory> categories,
     required GeoPoint providerLocation,
+    String? providerId,
   }) {
+    final declined = providerId == null
+        ? const <String>{}
+        : MatchingService.instance.declinedTicketIds(providerId);
+
     return TicketService.instance
         .watchMatchingTickets(categories: categories)
         .map(
           (tickets) => tickets.where((t) {
+            // A declined ticket stays declined — it used to come straight
+            // back on the next emission.
+            if (declined.contains(t.id)) return false;
             final distanceKm = LocationService.instance.distanceKm(
               providerLocation,
               t.approximateLocation,

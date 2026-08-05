@@ -7,6 +7,7 @@ import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../models/job_model.dart';
 import '../services/job_service.dart';
+import '../../../core/widgets/missing_route_argument_screen.dart';
 
 /// Customer-facing Estimate Review Screen.
 ///
@@ -24,8 +25,15 @@ class EstimateScreen extends StatefulWidget {
 class _EstimateScreenState extends State<EstimateScreen> {
   bool _busy = false;
 
+  /// Empty when this route was opened without a job id — [build] guards on
+  /// it and shows a real message. This used to be
+  /// `ModalRoute.of(context)!.settings.arguments as String`, which threw on
+  /// both the `!` and the cast, so arriving here from a notification tap or a
+  /// restored navigation stack crashed the screen.
   String get _jobId =>
-      widget.jobId ?? ModalRoute.of(context)!.settings.arguments as String;
+      widget.jobId ??
+      ModalRoute.of(context)?.settings.arguments as String? ??
+      '';
 
   Future<void> _approve() async {
     setState(() => _busy = true);
@@ -99,6 +107,9 @@ class _EstimateScreenState extends State<EstimateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_jobId.isEmpty) {
+      return const MissingRouteArgumentScreen(title: 'Repair estimate');
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Repair estimate')),
       body: StreamBuilder<Job>(

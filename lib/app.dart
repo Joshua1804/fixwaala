@@ -4,6 +4,7 @@ import 'core/routes/app_router.dart';
 import 'core/routes/route_names.dart';
 import 'core/services/app_preferences_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/simulation_mode_banner.dart';
 
 class FixwaalaApp extends StatefulWidget {
   const FixwaalaApp({super.key});
@@ -35,6 +36,10 @@ class _FixwaalaAppState extends State<FixwaalaApp> {
           themeMode: snapshot.data ?? ThemeMode.system,
           initialRoute: RouteNames.splash,
           onGenerateRoute: AppRouter.onGenerateRoute,
+          // Wraps every route, so a build that is silently persisting nothing
+          // announces itself no matter where the user is.
+          builder: (context, child) =>
+              SimulationModeBanner(child: child ?? const SizedBox.shrink()),
         );
       },
     );

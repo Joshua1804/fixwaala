@@ -7,6 +7,7 @@ import '../../../core/routes/route_names.dart';
 import '../../../core/services/cloudinary_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/models/enums.dart';
 
 const _maxPhotos = 5;
 
@@ -84,16 +85,44 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
 
   bool get _isUploading => _photos.any((p) => p.uploading);
 
+  /// Minimum useful description. Below this the AI has nothing to classify
+  /// and a provider has nothing to prepare for.
+  static const _minDescriptionLength = 15;
+
+  String? _descriptionError;
+
   void _continue() {
+    // There was no validator at all: an empty description went straight to
+    // the AI, which then produced generic questions about nothing.
+    final description = _descriptionController.text.trim();
+    if (description.length < _minDescriptionLength) {
+      setState(() {
+        _descriptionError = description.isEmpty
+            ? 'Please describe the problem so we can send the right person.'
+            : 'Add a little more detail — what is wrong, and where?';
+      });
+      return;
+    }
+
+    setState(() => _descriptionError = null);
     final images = _photos
         .where((p) => p.url != null)
         .map((p) => p.url!)
         .toList();
+
+    // The category the customer picked on the home grid, if any. Passing it
+    // on lets the AI treat it as a strong prior rather than re-deriving the
+    // category from scratch and potentially contradicting them.
+    final seeded =
+        (ModalRoute.of(context)?.settings.arguments
+            as Map<String, dynamic>?)?['category'];
+
     Navigator.of(context).pushNamed(
       RouteNames.aiAssist,
       arguments: {
-        'description': _descriptionController.text,
+        'description': description,
         'images': images,
+        if (seeded is ServiceCategory) 'seedCategory': seeded,
       },
     );
   }
@@ -110,10 +139,19 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
             TextField(
               controller: _descriptionController,
               maxLines: 5,
-              decoration: const InputDecoration(
+              maxLength: 500,
+              textCapitalization: TextCapitalization.sentences,
+              onChanged: (_) {
+                if (_descriptionError != null) {
+                  setState(() => _descriptionError = null);
+                }
+              },
+              decoration: InputDecoration(
                 labelText: "What's the problem?",
                 hintText: 'e.g. Kitchen sink is leaking under the cabinet.',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                errorText: _descriptionError,
+                helperText: 'The more detail, the better prepared they arrive.',
               ),
             ),
             const SizedBox(height: 16),

@@ -1,9 +1,21 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import 'storage_service.dart';
+
+/// User-facing app preferences, persisted across launches.
+///
+/// [initialize] previously hardcoded the defaults with a `TODO`, and every
+/// setter updated memory only — so choosing a dark theme lasted exactly as
+/// long as the process did.
 class AppPreferencesService {
   AppPreferencesService._();
   static final AppPreferencesService instance = AppPreferencesService._();
+
+  static const _themeKey = 'pref_theme_mode';
+  static const _notificationsKey = 'pref_notifications_enabled';
+  static const _languageKey = 'pref_language';
 
   final _themeModeController = StreamController<ThemeMode>.broadcast();
   final _notificationsEnabledController = StreamController<bool>.broadcast();
@@ -14,10 +26,16 @@ class AppPreferencesService {
   String _language = 'en';
 
   Future<void> initialize() async {
-    // TODO: Load preferences from storage when StorageService is fully implemented
-    _themeMode = ThemeMode.system;
-    _notificationsEnabled = true;
-    _language = 'en';
+    await StorageService.instance.initialize();
+
+    final storedTheme = StorageService.instance.getString(_themeKey);
+    _themeMode =
+        ThemeMode.values.where((m) => m.name == storedTheme).firstOrNull ??
+        ThemeMode.system;
+
+    _notificationsEnabled =
+        StorageService.instance.getBool(_notificationsKey) ?? true;
+    _language = StorageService.instance.getString(_languageKey) ?? 'en';
   }
 
   // Theme
@@ -27,17 +45,18 @@ class AppPreferencesService {
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     _themeModeController.add(mode);
-    // TODO: Persist to StorageService
+    await StorageService.instance.setString(_themeKey, mode.name);
   }
 
   // Notifications
-  Stream<bool> get notificationsEnabledStream => _notificationsEnabledController.stream;
+  Stream<bool> get notificationsEnabledStream =>
+      _notificationsEnabledController.stream;
   bool get notificationsEnabled => _notificationsEnabled;
 
   Future<void> setNotificationsEnabled(bool enabled) async {
     _notificationsEnabled = enabled;
     _notificationsEnabledController.add(enabled);
-    // TODO: Persist to StorageService
+    await StorageService.instance.setBool(_notificationsKey, enabled);
   }
 
   // Language
@@ -47,7 +66,7 @@ class AppPreferencesService {
   Future<void> setLanguage(String lang) async {
     _language = lang;
     _languageController.add(lang);
-    // TODO: Persist to StorageService
+    await StorageService.instance.setString(_languageKey, lang);
   }
 
   void dispose() {

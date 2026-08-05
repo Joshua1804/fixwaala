@@ -10,6 +10,7 @@ import '../../service_lifecycle/models/job_model.dart';
 import '../../service_lifecycle/services/job_service.dart';
 import '../models/payment_model.dart';
 import '../services/payment_service.dart';
+import '../../../core/widgets/missing_route_argument_screen.dart';
 
 enum _Stage { review, processing, success, failure }
 
@@ -32,8 +33,15 @@ class _SimulatedPaymentScreenState extends State<SimulatedPaymentScreen> {
   _Stage _stage = _Stage.review;
   PaymentRecord? _result;
 
+  /// Empty when this route was opened without a job id — [build] guards on
+  /// it and shows a real message. This used to be
+  /// `ModalRoute.of(context)!.settings.arguments as String`, which threw on
+  /// both the `!` and the cast, so arriving here from a notification tap or a
+  /// restored navigation stack crashed the screen.
   String get _jobId =>
-      widget.jobId ?? ModalRoute.of(context)!.settings.arguments as String;
+      widget.jobId ??
+      ModalRoute.of(context)?.settings.arguments as String? ??
+      '';
 
   Future<void> _confirmAndPay(double amount) async {
     final confirmed = await showDialog<bool>(
@@ -83,6 +91,9 @@ class _SimulatedPaymentScreenState extends State<SimulatedPaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_jobId.isEmpty) {
+      return const MissingRouteArgumentScreen(title: 'Payment');
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Payment')),
       body: StreamBuilder<Job>(

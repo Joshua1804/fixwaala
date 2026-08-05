@@ -1,0 +1,13 @@
+{
+  "name": "fixwaala-admin-scripts",
+  "private": true,
+  "version": "1.0.0",
+  "description": "One-off operator scripts for the Fixwaala admin website — not deployed anywhere, run locally with a service-account key.",
+  "type": "commonjs",
+  "scripts": {
+    "grant-admin": "node grant_admin_claim.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

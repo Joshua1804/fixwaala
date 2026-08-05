@@ -1,10 +1,8 @@
-enum UserRole { customer, provider, admin }
+enum UserRole { customer, provider }
 
 enum ServiceCategory { plumber, electrician, carpenter, unknown }
 
 enum ProblemComplexity { low, medium, high }
-
-enum VerificationStatus { pending, approved, rejected, resubmissionRequested }
 
 enum TicketStatus {
   draft,
@@ -62,13 +60,15 @@ enum PaymentStatus { pending, processing, success, failed }
 
 enum ReportSeverity { low, medium, high }
 
-/// Admin moderation state for a submitted [Report].
+/// Moderation state for a submitted [Report]. Advanced from the admin website;
+/// the app only ever creates reports at [ReportStatus.open].
 enum ReportStatus { open, underReview, resolved, rejected }
 
 /// Direction of a [Rating] — who is rating whom.
 enum RatingDirection { customerToProvider, providerToCustomer }
 
-/// Account standing, set by an admin (Module 12).
+/// Account standing. Written by the admin website onto `users/{uid}`; the app
+/// only reads it to block actions a non-active account must not perform.
 enum AccountStatus { active, restricted, suspended }
 
 /// Lifecycle of a single provider's candidacy on a ticket (Module 5/6).

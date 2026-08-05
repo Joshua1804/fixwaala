@@ -107,7 +107,9 @@ class _ServiceCategoryTileState extends State<ServiceCategoryTile>
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.labelMedium.copyWith(
-                    color: AppColors.textPrimary,
+                    // Theme-driven: AppColors.textPrimary (#0F2515) is
+                    // effectively invisible on the dark scaffold (#0A1610).
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

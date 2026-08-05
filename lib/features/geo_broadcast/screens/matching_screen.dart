@@ -11,6 +11,8 @@ import '../../customer_ticket/services/ticket_service.dart';
 import '../../trust_gated_matching/models/candidate_lease.dart';
 import '../../trust_gated_matching/services/matching_service.dart';
 import '../services/geo_broadcast_service.dart';
+import '../../../core/widgets/cancel_request_action.dart';
+import '../../../core/widgets/missing_route_argument_screen.dart';
 
 /// Customer-facing searching screen. Drives (and displays) the expanding
 /// 5→10→15 km geo-broadcast, then auto-navigates the moment a provider
@@ -32,7 +34,8 @@ class _MatchingScreenState extends State<MatchingScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_ticketId == null) {
-      final ticketId = ModalRoute.of(context)!.settings.arguments as String;
+      final ticketId =
+          ModalRoute.of(context)?.settings.arguments as String? ?? '';
       _ticketId = ticketId;
       _ticketStream = GeoBroadcastService.instance.runBroadcast(ticketId);
       _candidatesStream = MatchingService.instance.watchCandidates(ticketId);
@@ -74,6 +77,9 @@ class _MatchingScreenState extends State<MatchingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if ((_ticketId ?? '').isEmpty) {
+      return const MissingRouteArgumentScreen(title: 'Finding a provider');
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Finding provider')),
       body: StreamBuilder<List<CandidateLease>>(
@@ -134,8 +140,19 @@ class _MatchingScreenState extends State<MatchingScreen> {
                     ),
                     const Spacer(),
                     OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
+                      // Previously just `pop()` — the ticket stayed in
+                      // `matching` and kept broadcasting after the customer
+                      // thought they had withdrawn it.
+                      onPressed: () async {
+                        final cancelled = await CancelRequestAction.run(
+                          context,
+                          ticketId: _ticketId!,
+                        );
+                        if (cancelled && context.mounted) {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                      child: const Text('Cancel request'),
                     ),
                   ],
                 ),

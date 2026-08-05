@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart' as fs;
+
 import '../../../core/models/enums.dart';
 
 class Report {
@@ -32,6 +34,44 @@ class Report {
     this.ticketId,
     this.jobId,
   });
+
+  /// Firestore shape. Field names are the contract the admin website reads —
+  /// see `docs/ADMIN_DATA_CONTRACT.md` before renaming anything here.
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'reporterId': reporterId,
+    if (againstUserId != null) 'againstUserId': againstUserId,
+    if (ticketId != null) 'ticketId': ticketId,
+    if (jobId != null) 'jobId': jobId,
+    'reason': reason,
+    'description': description,
+    'evidenceUrls': evidenceUrls,
+    'severity': severity.name,
+    'status': status.name,
+    if (adminNote != null) 'adminNote': adminNote,
+    if (resolvedByAdminId != null) 'resolvedByAdminId': resolvedByAdminId,
+    'createdAt': fs.Timestamp.fromDate(createdAt),
+    if (updatedAt != null) 'updatedAt': fs.Timestamp.fromDate(updatedAt!),
+  };
+
+  factory Report.fromMap(Map<String, dynamic> map) => Report(
+    id: map['id'] as String? ?? '',
+    reporterId: map['reporterId'] as String? ?? '',
+    againstUserId: map['againstUserId'] as String?,
+    ticketId: map['ticketId'] as String?,
+    jobId: map['jobId'] as String?,
+    reason: map['reason'] as String? ?? '',
+    description: map['description'] as String? ?? '',
+    evidenceUrls: List<String>.from(map['evidenceUrls'] ?? const []),
+    severity: ReportSeverity.values.byName(
+      map['severity'] as String? ?? 'medium',
+    ),
+    status: ReportStatus.values.byName(map['status'] as String? ?? 'open'),
+    adminNote: map['adminNote'] as String?,
+    resolvedByAdminId: map['resolvedByAdminId'] as String?,
+    createdAt: _dateFrom(map['createdAt']),
+    updatedAt: map['updatedAt'] == null ? null : _dateFrom(map['updatedAt']),
+  );
 
   Report copyWith({
     ReportStatus? status,
@@ -83,6 +123,28 @@ class SafetyAlert {
     this.resolvedAt,
   });
 
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'userId': userId,
+    if (ticketId != null) 'ticketId': ticketId,
+    if (jobId != null) 'jobId': jobId,
+    'resolved': resolved,
+    if (resolvedByAdminId != null) 'resolvedByAdminId': resolvedByAdminId,
+    'raisedAt': fs.Timestamp.fromDate(raisedAt),
+    if (resolvedAt != null) 'resolvedAt': fs.Timestamp.fromDate(resolvedAt!),
+  };
+
+  factory SafetyAlert.fromMap(Map<String, dynamic> map) => SafetyAlert(
+    id: map['id'] as String? ?? '',
+    userId: map['userId'] as String? ?? '',
+    ticketId: map['ticketId'] as String?,
+    jobId: map['jobId'] as String?,
+    resolved: map['resolved'] as bool? ?? false,
+    resolvedByAdminId: map['resolvedByAdminId'] as String?,
+    raisedAt: _dateFrom(map['raisedAt']),
+    resolvedAt: map['resolvedAt'] == null ? null : _dateFrom(map['resolvedAt']),
+  );
+
   SafetyAlert copyWith({
     bool? resolved,
     String? resolvedByAdminId,
@@ -99,4 +161,11 @@ class SafetyAlert {
       resolvedAt: resolvedAt ?? this.resolvedAt,
     );
   }
+}
+
+/// Tolerates both a Firestore [fs.Timestamp] and an ISO-8601 string, so
+/// records written by the app and by the admin website both parse.
+DateTime _dateFrom(Object? value) {
+  if (value is fs.Timestamp) return value.toDate();
+  return DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/routes/route_names.dart';
+import '../../../core/services/firebase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
@@ -12,6 +13,9 @@ import '../../customer_ticket/models/ticket_model.dart';
 import '../../customer_ticket/services/ticket_service.dart';
 import '../models/candidate_lease.dart';
 import '../services/matching_service.dart';
+import '../../../core/utils/formatting.dart';
+import '../../../core/utils/error_messages.dart';
+import '../../../core/widgets/missing_route_argument_screen.dart';
 
 /// Customer-facing candidate review screen.
 ///
@@ -30,6 +34,7 @@ class ProviderReviewScreen extends StatefulWidget {
 class _ProviderReviewScreenState extends State<ProviderReviewScreen> {
   Timer? _timer;
   bool _expiredHandled = false;
+  bool _confirming = false;
 
   @override
   void dispose() {
@@ -50,20 +55,26 @@ class _ProviderReviewScreenState extends State<ProviderReviewScreen> {
     });
   }
 
+  static String _formatRemaining(int seconds) {
+    if (seconds < 60) return '${seconds}s';
+    final minutes = seconds ~/ 60;
+    final rest = seconds % 60;
+    return '${minutes}m ${rest.toString().padLeft(2, '0')}s';
+  }
+
   Future<void> _handleExpired(String ticketId) async {
     if (_expiredHandled) return;
     _expiredHandled = true;
-    final candidates = await MatchingService.instance
-        .watchCandidates(ticketId)
-        .first;
-    for (final c in candidates.where(
-      (c) => c.status == CandidateStatus.pending,
-    )) {
-      await MatchingService.instance.rejectCandidate(
-        ticketId: ticketId,
-        providerId: c.providerId,
-        status: CandidateStatus.expired,
-      );
+    // Expiry is server-owned once `expireCandidateLeases` is actually
+    // deployed (see AppConstants.scheduledFunctionsDeployed) — that requires
+    // Blaze and may not be running, in which case a customer who closes this
+    // screen before it fires leaves their leases stuck pending forever. The
+    // local call is the fallback for that case; either way it is one batched
+    // write rather than the previous sequential loop, where each rejection
+    // re-read the whole candidate list.
+    if (!FirebaseService.instance.isInitialized ||
+        !AppConstants.scheduledFunctionsDeployed) {
+      await MatchingService.instance.expireAllPending(ticketId);
     }
     if (!mounted) return;
     Navigator.of(
@@ -72,20 +83,43 @@ class _ProviderReviewScreenState extends State<ProviderReviewScreen> {
   }
 
   Future<void> _confirm(CandidateLease candidate) async {
+    // Confirming twice used to create two jobs — the button stayed live for
+    // the whole round trip.
+    if (_confirming) return;
+    setState(() => _confirming = true);
     _timer?.cancel();
-    await MatchingService.instance.confirmProvider(
-      ticketId: candidate.ticketId,
-      providerId: candidate.providerId,
-      providerName: candidate.displayName,
-      category: candidate.category,
-    );
-    if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed(RouteNames.jobTracking);
+
+    try {
+      final job = await MatchingService.instance.confirmProvider(
+        ticketId: candidate.ticketId,
+        providerId: candidate.providerId,
+        providerName: candidate.displayName,
+        category: candidate.category,
+      );
+      if (!mounted) return;
+      // Pass the job id. This navigated with no arguments at all, and only
+      // appeared to work because JobService held every job on the platform in
+      // memory for the destination to rummage through. With listeners scoped
+      // to the signed-in user, an argument-less push is a guaranteed dead-end
+      // at the exact moment the customer has committed to a provider.
+      Navigator.of(
+        context,
+      ).pushReplacementNamed(RouteNames.jobTracking, arguments: job.jobId);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _confirming = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(ErrorMessages.friendly(error))));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final ticketId = ModalRoute.of(context)!.settings.arguments as String;
+    final ticketId = ModalRoute.of(context)?.settings.arguments as String?;
+    if (ticketId == null) {
+      return const MissingRouteArgumentScreen(title: 'Review providers');
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Review providers')),
@@ -128,15 +162,39 @@ class _ProviderReviewScreenState extends State<ProviderReviewScreen> {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         Text(
-                          '${remainingSeconds}s',
-                          style: Theme.of(context).textTheme.titleMedium,
+                          _formatRemaining(remainingSeconds),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color:
+                                    remainingSeconds <=
+                                        AppConstants
+                                            .candidateReviewWarningSeconds
+                                    ? AppColors.error
+                                    : null,
+                              ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     LinearProgressIndicator(
                       value: remainingSeconds / totalSeconds,
+                      color:
+                          remainingSeconds <=
+                              AppConstants.candidateReviewWarningSeconds
+                          ? AppColors.error
+                          : null,
                     ),
+                    if (remainingSeconds <=
+                        AppConstants.candidateReviewWarningSeconds) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Choosing soon keeps these providers available — '
+                        'after this we will search again.',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: AppColors.error),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     const Text(
                       'Your exact address is only shared with the provider you confirm.',
@@ -156,6 +214,7 @@ class _ProviderReviewScreenState extends State<ProviderReviewScreen> {
                                   const SizedBox(height: 12),
                               itemBuilder: (context, i) => _CandidateCard(
                                 candidate: candidates[i],
+                                busy: _confirming,
                                 onConfirm: () => _confirm(candidates[i]),
                               ),
                             ),
@@ -174,7 +233,12 @@ class _ProviderReviewScreenState extends State<ProviderReviewScreen> {
 class _CandidateCard extends StatelessWidget {
   final CandidateLease candidate;
   final VoidCallback onConfirm;
-  const _CandidateCard({required this.candidate, required this.onConfirm});
+  final bool busy;
+  const _CandidateCard({
+    required this.candidate,
+    required this.onConfirm,
+    this.busy = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +253,7 @@ class _CandidateCard extends StatelessWidget {
                   radius: 28,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                   child: Text(
-                    _initials(candidate.displayName),
+                    initialsOf(candidate.displayName),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
@@ -217,7 +281,7 @@ class _CandidateCard extends StatelessWidget {
                               color: AppColors.success,
                             ),
                             SizedBox(width: 4),
-                            Text('Aadhaar + Selfie verified'),
+                            Text('Verified'),
                           ],
                         ),
                     ],
@@ -254,7 +318,10 @@ class _CandidateCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            PrimaryButton(label: 'Confirm this provider', onPressed: onConfirm),
+            PrimaryButton(
+              label: busy ? 'Confirming…' : 'Confirm this provider',
+              onPressed: busy ? null : onConfirm,
+            ),
           ],
         ),
       ),
@@ -273,16 +340,4 @@ class _Stat extends StatelessWidget {
       children: [Icon(icon), const SizedBox(height: 4), Text(label)],
     );
   }
-}
-
-String _initials(String name) {
-  final parts = name
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((p) => p.isNotEmpty)
-      .toList();
-  if (parts.isEmpty) return '?';
-  if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-  return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
-      .toUpperCase();
 }

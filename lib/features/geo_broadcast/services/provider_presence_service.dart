@@ -7,6 +7,7 @@ import '../../../core/models/user_model.dart';
 import '../../../core/services/firebase_service.dart';
 import '../../../core/services/location_service.dart';
 import '../../auth/services/auth_service.dart';
+import '../../trust_gated_matching/services/matching_service.dart';
 
 /// Owns a provider's online/offline status and live location, embedded on
 /// their `users/{uid}` doc under `providerProfile` (Module 5).
@@ -46,6 +47,9 @@ class ProviderPresenceService {
     await AuthService.instance.updateProviderProfile(profile);
 
     if (online) {
+      // Rehydrate past declines before the feed opens, so a restart does not
+      // resurface every opportunity this provider already refused.
+      await MatchingService.instance.loadDeclines(user.id);
       await updateLocationOnce();
       startSharing();
     } else {

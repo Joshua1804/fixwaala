@@ -1,30 +1,34 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/models/enums.dart';
-import '../../../core/models/user_model.dart';
+import '../../../core/models/provider_public_profile.dart';
+import '../../../core/services/provider_directory_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../../../core/widgets/service_category_ui.dart';
-import '../../auth/services/auth_service.dart';
-import '../../provider_dashboard/models/analytics_model.dart';
-import '../../provider_dashboard/services/analytics_service.dart';
-import '../../provider_verification/services/verification_service.dart';
 import '../../ratings/models/rating_model.dart';
 import '../../ratings/services/rating_service.dart';
+import '../../../core/utils/formatting.dart';
+import '../../../core/widgets/missing_route_argument_screen.dart';
 
 class _ProfileData {
-  final AppUser? user;
-  final VerificationStatus verification;
-  final ProviderAnalytics analytics;
-  final List<Rating> reviews;
+  final ProviderPublicProfile? user;
 
-  const _ProfileData({
-    required this.user,
-    required this.verification,
-    required this.analytics,
-    required this.reviews,
-  });
+  /// Every rating this provider has received. Reputation is deliberately
+  /// world-readable; the aggregates below are derived from it rather than
+  /// from a stored counter the provider could inflate.
+  final List<Rating> ratings;
+
+  const _ProfileData({required this.user, required this.ratings});
+
+  int get ratingCount => ratings.length;
+
+  double get ratingAverage => ratings.isEmpty
+      ? 0
+      : ratings.map((r) => r.stars).reduce((a, b) => a + b) / ratings.length;
+
+  List<Rating> get reviews =>
+      ratings.where((r) => (r.review ?? '').trim().isNotEmpty).toList();
 }
 
 /// Read-only public profile for a candidate provider, opened by a customer
@@ -45,31 +49,39 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_providerId == null) {
-      _providerId = ModalRoute.of(context)!.settings.arguments as String;
+      _providerId = ModalRoute.of(context)?.settings.arguments as String? ?? '';
       _future = _load(_providerId!);
     }
   }
 
+  /// Loads only what a customer is entitled to see about a provider.
+  ///
+  /// Both sources are public by design. The identity half comes from
+  /// `providerPublicProfiles`, not `users/{uid}` — that document carries the
+  /// provider's phone, address, and live GPS, and the rules make it readable
+  /// by its owner alone.
+  ///
+  /// This deliberately does **not** go through [AnalyticsService], which
+  /// derives its numbers from the local job cache. That cache now holds only
+  /// the signed-in user's own jobs, so asking it about someone else returns
+  /// zeros — and reading another provider's jobs is exactly what the rules
+  /// forbid. Public reputation comes from the ratings collection instead.
   Future<_ProfileData> _load(String providerId) async {
     final results = await Future.wait([
-      AuthService.instance.getUserById(providerId),
-      VerificationService.instance.status(providerId),
-      AnalyticsService.instance.load(providerId),
+      ProviderDirectoryService.instance.fetch(providerId),
+      RatingService.instance.fetchRatingsFor(providerId),
     ]);
     return _ProfileData(
-      user: results[0] as AppUser?,
-      verification: results[1] as VerificationStatus,
-      analytics: results[2] as ProviderAnalytics,
-      reviews: RatingService.instance
-          .ratingsFor(providerId)
-          .where((r) => (r.review ?? '').trim().isNotEmpty)
-          .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
+      user: results[0] as ProviderPublicProfile?,
+      ratings: results[1] as List<Rating>,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    if ((_providerId ?? '').isEmpty) {
+      return const MissingRouteArgumentScreen(title: 'Provider profile');
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Provider profile')),
       body: FutureBuilder<_ProfileData>(
@@ -80,8 +92,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           }
           final data = snapshot.data!;
           final user = data.user;
-          final profile = user?.providerProfile;
-          final analytics = data.analytics;
 
           return ListView(
             padding: const EdgeInsets.all(20),
@@ -92,7 +102,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     radius: 32,
                     backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                     child: Text(
-                      _initials(user?.name ?? 'Provider'),
+                      initialsOf(user?.name ?? 'Provider'),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 20,
@@ -110,7 +120,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                           style: AppTextStyles.titleLarge,
                         ),
                         const SizedBox(height: 4),
-                        if (data.verification == VerificationStatus.approved)
+                        if (user?.isVerified ?? false)
                           const Row(
                             children: [
                               Icon(
@@ -120,7 +130,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                               ),
                               SizedBox(width: 4),
                               Text(
-                                'Aadhaar + Selfie verified',
+                                'Verified',
                                 style: TextStyle(color: AppColors.success),
                               ),
                             ],
@@ -138,37 +148,38 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 ],
               ),
               const SizedBox(height: 24),
+              // Only stats a customer is entitled to verify. Job counts and
+              // completion rates come from the provider's private job history
+              // and stay on their own dashboard.
               Row(
                 children: [
                   Expanded(
                     child: _StatTile(
                       icon: Icons.star_rounded,
-                      value: analytics.ratingCount == 0
+                      value: data.ratingCount == 0
                           ? '—'
-                          : analytics.ratingAverage.toStringAsFixed(1),
-                      label: analytics.ratingCount == 0
+                          : data.ratingAverage.toStringAsFixed(1),
+                      label: data.ratingCount == 0
                           ? 'No ratings yet'
-                          : '${analytics.ratingCount} ratings',
+                          : 'Average rating',
                       color: AppColors.warning,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _StatTile(
-                      icon: Icons.work_history_rounded,
-                      value: '${analytics.completedJobs}',
-                      label: 'Jobs done',
+                      icon: Icons.reviews_rounded,
+                      value: '${data.ratingCount}',
+                      label: data.ratingCount == 1 ? 'Rated job' : 'Rated jobs',
                       color: AppColors.success,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _StatTile(
-                      icon: Icons.speed_rounded,
-                      value: analytics.hasHistory
-                          ? '${(analytics.completionRate * 100).toStringAsFixed(0)}%'
-                          : '—',
-                      label: 'Completion',
+                      icon: Icons.event_available_rounded,
+                      value: user?.createdAt.year.toString() ?? '—',
+                      label: 'Member since',
                       color: AppColors.info,
                     ),
                   ),
@@ -177,7 +188,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               const SizedBox(height: 24),
               Text('Skills', style: AppTextStyles.titleMedium),
               const SizedBox(height: 8),
-              if (profile == null || profile.skills.isEmpty)
+              if (user == null || user.skills.isEmpty)
                 Text(
                   'No skills listed.',
                   style: AppTextStyles.bodyMedium.copyWith(
@@ -188,7 +199,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: profile.skills
+                  children: user.skills
                       .map(
                         (s) => Chip(
                           avatar: Icon(
@@ -201,20 +212,20 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                       )
                       .toList(),
                 ),
-              if (profile?.experienceYears != null ||
-                  profile?.serviceArea != null) ...[
+              if (user?.experienceYears != null ||
+                  user?.serviceArea != null) ...[
                 const SizedBox(height: 24),
                 Text('Details', style: AppTextStyles.titleMedium),
                 const SizedBox(height: 8),
-                if (profile?.experienceYears != null)
+                if (user?.experienceYears != null)
                   _DetailRow(
                     icon: Icons.badge_outlined,
-                    label: '${profile!.experienceYears} years experience',
+                    label: '${user!.experienceYears} years experience',
                   ),
-                if (profile?.serviceArea != null)
+                if (user?.serviceArea != null)
                   _DetailRow(
                     icon: Icons.map_outlined,
-                    label: 'Serves ${profile!.serviceArea}',
+                    label: 'Serves ${user!.serviceArea}',
                   ),
               ],
               const SizedBox(height: 24),
@@ -270,7 +281,9 @@ class _StatTile extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold),
+            style: AppTextStyles.titleMedium.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -327,7 +340,9 @@ class _ReviewTile extends StatelessWidget {
             children: List.generate(
               5,
               (i) => Icon(
-                i < rating.stars ? Icons.star_rounded : Icons.star_border_rounded,
+                i < rating.stars
+                    ? Icons.star_rounded
+                    : Icons.star_border_rounded,
                 size: 16,
                 color: AppColors.warning,
               ),
@@ -339,16 +354,4 @@ class _ReviewTile extends StatelessWidget {
       ),
     );
   }
-}
-
-String _initials(String name) {
-  final parts = name
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((p) => p.isNotEmpty)
-      .toList();
-  if (parts.isEmpty) return '?';
-  if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-  return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
-      .toUpperCase();
 }

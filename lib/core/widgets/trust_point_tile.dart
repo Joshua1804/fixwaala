@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
 /// A static icon + title + description row used to communicate a trust
-/// differentiator (verified providers, review-before-assignment, etc).
+/// differentiator (ratings, review-before-assignment, address privacy).
 class TrustPointTile extends StatelessWidget {
   final IconData icon;
   final String title;

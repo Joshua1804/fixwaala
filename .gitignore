@@ -25,6 +25,8 @@ migrate_working_dir/
 
 # Environment secrets
 .env
+dart_defines*.json
+*.dart-defines.json
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -46,3 +48,18 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Release signing — never commit keystores or their passwords
+android/key.properties
+*.jks
+*.keystore
+
+# Build artifacts and IDE state that slipped into the index
+/build/
+.dart_tool/
+.idea/
+*.bundle
+
+# Admin bootstrap script — service-account keys grant full Admin SDK access
+scripts/admin/service-account.json
+scripts/admin/node_modules/

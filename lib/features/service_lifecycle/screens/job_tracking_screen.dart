@@ -17,6 +17,7 @@ import '../models/job_model.dart';
 import '../services/job_service.dart';
 import '../widgets/job_status_ui.dart';
 import '../widgets/live_tracking_map.dart';
+import '../../../core/widgets/contact_party_button.dart';
 
 /// Central live-status hub for the customer's confirmed job.
 ///
@@ -72,6 +73,18 @@ class _NoActiveJobEmptyState extends StatelessWidget {
     );
   }
 }
+
+/// Contact is offered once the provider is committed and moving, not while
+/// the job is merely assigned and not yet accepted.
+bool _canContact(JobStatus status) =>
+    status == JobStatus.accepted ||
+    status == JobStatus.enRoute ||
+    status == JobStatus.arrived ||
+    status == JobStatus.checkedIn ||
+    status == JobStatus.inspecting ||
+    status == JobStatus.estimateSubmitted ||
+    status == JobStatus.workInProgress ||
+    status == JobStatus.completionRequested;
 
 class _JobTrackingBody extends StatelessWidget {
   final String jobId;
@@ -221,6 +234,15 @@ class _ProviderCard extends StatelessWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  // Reachable from the moment they set off — the point at
+                  // which "which gate?" and "I can't find the flat" happen.
+                  if (_canContact(job.status)) ...[
+                    const SizedBox(height: 8),
+                    ContactPartyButton(
+                      phoneNumber: job.providerPhone,
+                      partyLabel: 'provider',
+                    ),
+                  ],
                 ],
               ),
             ),

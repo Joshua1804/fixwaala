@@ -10,7 +10,8 @@ import '../../../core/widgets/custom_button.dart';
 import '../services/auth_service.dart';
 
 /// Provider onboarding — skills, experience, service area, availability.
-/// No Aadhaar, selfie, or other identity verification is part of this flow.
+/// No identity verification is part of this flow — the "Verified" badge is
+/// granted by an administrator in the admin website, not earned here.
 class ProviderOnboardingScreen extends StatefulWidget {
   const ProviderOnboardingScreen({super.key});
 
