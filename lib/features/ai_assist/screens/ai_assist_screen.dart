@@ -4,13 +4,16 @@ import '../../../core/models/enums.dart';
 import '../../../core/routes/route_names.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/widgets/async_state_builder.dart';
 import '../../../core/widgets/loading_widget.dart';
+import '../../../core/utils/error_messages.dart';
 import '../models/clarifying_qa.dart';
 import '../models/fault_classification.dart';
 import '../models/problem_summary.dart';
 import '../services/ai_classifier_service.dart';
+import '../services/gemini_ai_service.dart';
 
-enum _Step { loadingInitial, questions, loadingFinal, result }
+enum _Step { loadingInitial, questions, loadingFinal, result, failed }
 
 class AiAssistScreen extends StatefulWidget {
   const AiAssistScreen({super.key});
@@ -31,6 +34,12 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
   List<String> _images = const [];
 
   bool _ranOnce = false;
+  String? _error;
+
+  /// True when the AI produced nothing usable and the keyword rule engine
+  /// stood in. Surfaced to the customer instead of silently handing them
+  /// generic questions and a low-confidence category.
+  bool _usedFallback = false;
 
   @override
   void didChangeDependencies() {
@@ -42,6 +51,8 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
         const {};
     _description = args['description'] as String? ?? '';
     _images = (args['images'] as List?)?.cast<String>() ?? const [];
+    // Pre-selected on the home grid — respected unless the customer changes it.
+    _override = args['seedCategory'] as ServiceCategory?;
     _run();
   }
 
@@ -53,49 +64,85 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
     super.dispose();
   }
 
+  /// Runs the first AI pass.
+  ///
+  /// This had no `try`/`catch`: any unexpected throw left `_step` at
+  /// [_Step.loadingInitial], so the customer sat on a spinner forever with no
+  /// message and no way out. Every path now lands on a real state.
   Future<void> _run() async {
-    final result = await AiClassifierService.instance.classifyWithAi(
-      description: _description,
-      imageUrls: _images,
-    );
-    if (!mounted) return;
     setState(() {
-      _initial = result;
-      _answerControllers
-        ..clear()
-        ..addAll(
-          List.generate(
-            result.clarifyingQuestions.length,
-            (_) => TextEditingController(),
-          ),
-        );
-      _questionIndex = 0;
-      _step = result.clarifyingQuestions.isEmpty
-          ? _Step.loadingFinal
-          : _Step.questions;
+      _step = _Step.loadingInitial;
+      _error = null;
     });
-    if (_step == _Step.loadingFinal) {
-      _runFinal();
+    try {
+      final result = await AiClassifierService.instance.classifyWithAi(
+        description: _description,
+        imageUrls: _images,
+      );
+      if (!mounted) return;
+      setState(() {
+        _initial = result;
+        _usedFallback = !GeminiAiService.instance.isConfigured;
+        _answerControllers
+          ..clear()
+          ..addAll(
+            List.generate(
+              result.clarifyingQuestions.length,
+              (_) => TextEditingController(),
+            ),
+          );
+        _questionIndex = 0;
+        _step = result.clarifyingQuestions.isEmpty
+            ? _Step.loadingFinal
+            : _Step.questions;
+      });
+      if (_step == _Step.loadingFinal) {
+        await _runFinal();
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = ErrorMessages.friendly(error);
+        _step = _Step.failed;
+      });
     }
   }
 
   Future<void> _runFinal() async {
-    final qaPairs = List.generate(
-      _initial?.clarifyingQuestions.length ?? 0,
-      (i) => ClarifyingQa(
-        question: _initial!.clarifyingQuestions[i],
-        answer: _answerControllers[i].text.trim(),
-      ),
-    );
-    final result = await AiClassifierService.instance.summarizeWithAi(
-      description: _description,
-      qaPairs: qaPairs,
-      fallbackCategory: _initial?.category ?? ServiceCategory.unknown,
-      fallbackComplexity: _initial?.complexity ?? ProblemComplexity.medium,
-    );
-    if (!mounted) return;
+    try {
+      final qaPairs = List.generate(
+        _initial?.clarifyingQuestions.length ?? 0,
+        (i) => ClarifyingQa(
+          question: _initial!.clarifyingQuestions[i],
+          answer: _answerControllers[i].text.trim(),
+        ),
+      );
+      final result = await AiClassifierService.instance.summarizeWithAi(
+        description: _description,
+        qaPairs: qaPairs,
+        fallbackCategory: _initial?.category ?? ServiceCategory.unknown,
+        fallbackComplexity: _initial?.complexity ?? ProblemComplexity.medium,
+      );
+      if (!mounted) return;
+      setState(() {
+        _final = result;
+        _step = _Step.result;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = ErrorMessages.friendly(error);
+        _step = _Step.failed;
+      });
+    }
+  }
+
+  /// Abandons AI assist and continues to the review step with what the
+  /// customer already typed. AI triage is a convenience — it must never be
+  /// the thing that stops someone reporting a burst pipe.
+  void _skipAi() {
     setState(() {
-      _final = result;
+      _final = null;
       _step = _Step.result;
     });
   }
@@ -152,9 +199,20 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
           label: 'Putting together your summary...',
         ),
         _Step.result => _buildResultStep(),
+        _Step.failed => _buildFailedStep(),
       },
     );
   }
+
+  Widget _buildFailedStep() => Padding(
+    padding: const EdgeInsets.all(24),
+    child: AsyncErrorView(
+      message:
+          '${_error ?? 'AI assist is unavailable right now.'}\n\n'
+          'You can try again, or continue and pick the category yourself.',
+      onRetry: _run,
+    ),
+  );
 
   Widget _buildQuestionStep() {
     final questions = _initial!.clarifyingQuestions;
@@ -165,6 +223,13 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_usedFallback) ...[
+            // The AI silently degrading to an 18-keyword rule engine used to
+            // be invisible — the customer just got generic questions and a
+            // low-confidence category with no idea why.
+            const _AiUnavailableBanner(),
+            const SizedBox(height: 12),
+          ],
           LinearProgressIndicator(value: (_questionIndex + 1) / total),
           const SizedBox(height: 12),
           Text(
@@ -207,6 +272,13 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
               ),
             ],
           ),
+          // Questions were mandatory, one per screen, with no way past them.
+          // An answer the customer does not have should not block the request.
+          TextButton(
+            onPressed: _nextQuestion,
+            child: Text(isLast ? 'Not sure — finish' : 'Not sure — skip'),
+          ),
+          TextButton(onPressed: _skipAi, child: const Text('Skip AI assist')),
         ],
       ),
     );
@@ -275,6 +347,39 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
           ],
           const Spacer(),
           PrimaryButton(label: 'Confirm', onPressed: _confirm),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tells the customer the AI could not be reached, without blocking them.
+class _AiUnavailableBanner extends StatelessWidget {
+  const _AiUnavailableBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 18,
+            color: AppColors.warning,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'AI assist is unavailable — these are standard questions. '
+              'You can answer what you know and continue.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
         ],
       ),
     );

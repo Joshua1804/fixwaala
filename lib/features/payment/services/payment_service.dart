@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart'
-    show CollectionReference, FirebaseException;
+import 'package:cloud_firestore/cloud_firestore.dart' show CollectionReference;
 import 'package:flutter/foundation.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/services/firebase_service.dart';
-import '../../admin_panel/services/account_service.dart';
+import '../../../core/services/session_scoped_sync.dart';
+import '../../../core/services/account_service.dart';
 import '../../service_lifecycle/services/job_service.dart';
 import '../models/payment_model.dart';
 
@@ -23,39 +23,33 @@ class PaymentService {
   static final PaymentService instance = PaymentService._();
 
   final Map<String, PaymentRecord> _records = {}; // jobId -> record
-  StreamSubscription? _liveSub;
+  late final SessionScopedSync _sync = SessionScopedSync(
+    debugName: 'PaymentService',
+    queriesForUser: (uid) => [
+      _col.where('customerId', isEqualTo: uid),
+      _col.where('providerId', isEqualTo: uid),
+    ],
+    onChange: (change) {
+      final record = PaymentRecord.fromMap(change.doc.data()!);
+      instance._records[record.jobId] = record;
+    },
+    onClear: () => instance._records.clear(),
+  );
 
   bool get _live => FirebaseService.instance.isInitialized;
   CollectionReference<Map<String, dynamic>> get _col =>
       FirebaseService.instance.firestore.collection('payments');
 
-  /// Opens the live Firestore sync. Call once at app startup. No-op in
-  /// simulation mode.
-  Future<void> initialize() async {
-    if (!_live) return;
-    await _liveSub?.cancel();
-    _liveSub = _col.snapshots().listen((snapshot) {
-      for (final change in snapshot.docChanges) {
-        final record = PaymentRecord.fromMap(change.doc.data()!);
-        _records[record.jobId] = record;
-      }
-    });
-  }
+  /// Binds the live Firestore sync to the signed-in user. Call once at app
+  /// startup; it waits for auth itself. No-op in simulation mode.
+  Future<void> initialize() => _sync.start();
+
+  /// Ends the session sync and drops every cached payment.
+  Future<void> endSession() => _sync.stop();
 
   Future<void> _persist(PaymentRecord record) async {
     if (!_live) return;
-    try {
-      await _col.doc(record.jobId).set(record.toMap());
-    } on FirebaseException catch (e) {
-      if (kDebugMode && e.code == 'permission-denied') {
-        debugPrint(
-          '[PaymentService] Firestore denied payment write; continuing in '
-          'local cache only. Update Firestore rules before release.',
-        );
-        return;
-      }
-      rethrow;
-    }
+    await _col.doc(record.jobId).set(record.toMap());
   }
 
   @visibleForTesting
@@ -78,12 +72,20 @@ class PaymentService {
       throw StateError('Payment is only available once the job is completed.');
     }
     AccountService.instance.assertActive(job.customerId);
-    await Future.delayed(const Duration(seconds: 2));
+
+    // A deliberate stall so the demo payment feels like a real gateway
+    // round trip. Debug only — this used to run unconditionally, adding two
+    // seconds to every payment in a release build.
+    if (kDebugMode) {
+      await Future.delayed(const Duration(seconds: 2));
+    }
 
     final now = DateTime.now();
     final record = PaymentRecord(
       id: 'pay-${now.microsecondsSinceEpoch}',
       jobId: jobId,
+      customerId: job.customerId,
+      providerId: job.providerId,
       amount: amount,
       method: method,
       status: forceFailure ? PaymentStatus.failed : PaymentStatus.success,

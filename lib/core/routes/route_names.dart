@@ -12,11 +12,6 @@ class RouteNames {
   static const customerOnboarding = '/auth/onboarding/customer';
   static const providerOnboarding = '/auth/onboarding/provider';
 
-  // Module 2 - Provider verification
-  static const aadhaarEntry = '/verify/aadhaar';
-  static const selfieCapture = '/verify/selfie';
-  static const verificationStatus = '/verify/status';
-
   // Home shells
   static const customerHome = '/customer/home';
   static const providerHome = '/provider/home';
@@ -34,12 +29,10 @@ class RouteNames {
 
   // Module 6 - Trust-gated matching
   static const providerReview = '/match/review';
-  static const providerOpportunity = '/match/opportunity';
   static const candidateProviderProfile = '/match/review/provider-profile';
 
   // Module 7 - Service lifecycle
   static const jobTracking = '/job/track';
-  static const inspection = '/job/inspection';
   static const estimate = '/job/estimate';
   static const completion = '/job/completion';
   static const providerActiveJobs = '/provider/jobs';
@@ -59,18 +52,15 @@ class RouteNames {
   static const providerPerformance = '/provider/performance';
   static const providerEarnings = '/provider/earnings';
   static const providerTrustScore = '/provider/trust-score';
+  static const providerSkills = '/provider/skills';
+
+  // Static content
+  static const privacyPolicy = '/legal/privacy';
+  static const termsOfService = '/legal/terms';
+  static const about = '/about';
+  static const help = '/help';
 
   // Module 11 - Reports & safety
   static const report = '/report';
   static const sos = '/sos';
-
-  // Module 12 - Admin
-  static const adminLogin = '/admin/login';
-  static const adminDashboard = '/admin/dashboard';
-  static const adminVerificationReview = '/admin/verifications';
-  static const adminReports = '/admin/reports';
-  static const adminActiveTickets = '/admin/tickets';
-  static const adminSafetyAlerts = '/admin/safety-alerts';
-  static const adminAccounts = '/admin/accounts';
-  static const adminAuditEvents = '/admin/audit';
 }

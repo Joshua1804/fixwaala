@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../models/job_model.dart';
 import '../services/job_service.dart';
+import '../../../core/widgets/missing_route_argument_screen.dart';
 
 /// Provider's Inspection and Estimate Screen — where the diagnosis and
 /// itemised repair estimate are entered before the customer reviews them.
@@ -26,8 +27,15 @@ class _ProviderInspectionEstimateScreenState
   bool _submitting = false;
   String? _error;
 
+  /// Empty when this route was opened without a job id — [build] guards on
+  /// it and shows a real message. This used to be
+  /// `ModalRoute.of(context)!.settings.arguments as String`, which threw on
+  /// both the `!` and the cast, so arriving here from a notification tap or a
+  /// restored navigation stack crashed the screen.
   String _resolveJobId(BuildContext context) =>
-      widget.jobId ?? ModalRoute.of(context)!.settings.arguments as String;
+      widget.jobId ??
+      ModalRoute.of(context)?.settings.arguments as String? ??
+      '';
 
   @override
   void dispose() {
@@ -74,6 +82,9 @@ class _ProviderInspectionEstimateScreenState
   @override
   Widget build(BuildContext context) {
     final jobId = _resolveJobId(context);
+    if (jobId.isEmpty) {
+      return const MissingRouteArgumentScreen(title: 'Inspection & estimate');
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Inspection & estimate')),
       body: Padding(

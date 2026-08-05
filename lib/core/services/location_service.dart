@@ -54,7 +54,8 @@ class LocationService {
     final dLat = _degToRad(b.latitude - a.latitude);
     final dLng = _degToRad(b.longitude - a.longitude);
 
-    final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final h =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(lat1) *
             math.cos(lat2) *
             math.sin(dLng / 2) *

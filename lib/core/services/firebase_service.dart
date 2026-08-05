@@ -13,25 +13,38 @@ class FirebaseService {
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
+  /// Why the app fell back to simulation mode, if it did.
+  ///
+  /// The fallback used to announce itself with a `debugPrint` and nothing
+  /// else. A misconfigured build therefore launched, looked entirely healthy,
+  /// and silently persisted **nothing** — every ticket, job, and payment lost
+  /// on restart, with the only warning in a console nobody was watching.
+  /// [SimulationModeBanner] surfaces this in the UI instead.
+  String? _simulationReason;
+  String? get simulationReason => _simulationReason;
+
+  bool get isSimulated => !_isInitialized;
+
   Future<void> initialize() async {
     try {
       final options = DefaultFirebaseOptions.currentPlatform;
       if (options.apiKey == 'placeholder-apiKey') {
-        debugPrint(
-          'Firebase is using placeholder options. Running in simulation mode.',
-        );
         _isInitialized = false;
+        _simulationReason =
+            'Firebase is not configured for this build — run '
+            '`flutterfire configure`.';
+        debugPrint('[FirebaseService] $_simulationReason');
         return;
       }
 
       await Firebase.initializeApp(options: options);
       _isInitialized = true;
-      debugPrint('Firebase initialized successfully.');
+      _simulationReason = null;
+      debugPrint('[FirebaseService] Firebase initialized successfully.');
     } catch (e) {
-      debugPrint(
-        'Firebase initialization failed: $e. Running in simulation mode.',
-      );
       _isInitialized = false;
+      _simulationReason = 'Firebase failed to start: $e';
+      debugPrint('[FirebaseService] $_simulationReason');
     }
   }
 

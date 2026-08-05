@@ -1,11 +1,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.CAMERA"/>
+
+    <!-- Location. A provider's live position drives geo-broadcast matching. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Without POST_NOTIFICATIONS, Android 13+ silently suppresses every
+         notification the app posts — including the local ones already in use.
+         Requested at runtime; see NotificationService. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- A provider on the way to a job keeps sharing location with the
+         customer while the app is backgrounded. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <application
-        android:label="fixwaala"
+        android:label="Fixwaala"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -45,6 +56,12 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Required on Android 11+ for url_launcher to resolve the dialer
+             for the customer/provider call handoff. -->
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
         </intent>
     </queries>
 </manifest>

@@ -14,6 +14,9 @@ import '../../payment/services/payment_service.dart';
 import '../models/job_model.dart';
 import '../services/job_service.dart';
 import '../widgets/job_status_ui.dart';
+import '../../../core/widgets/remote_image.dart';
+import '../../../core/widgets/missing_route_argument_screen.dart';
+import '../../../core/widgets/contact_party_button.dart';
 
 /// Provider's Job Details Screen — full context on a single job plus a
 /// link into the Status Update Screen for the next lifecycle action.
@@ -21,23 +24,20 @@ class JobDetailsScreen extends StatelessWidget {
   final String? jobId;
   const JobDetailsScreen({super.key, this.jobId});
 
+  /// Empty when this route was opened without a job id — [build] guards on
+  /// it and shows a real message. This used to be
+  /// `ModalRoute.of(context)!.settings.arguments as String`, which threw on
+  /// both the `!` and the cast, so arriving here from a notification tap or a
+  /// restored navigation stack crashed the screen.
   String _resolveJobId(BuildContext context) =>
-      jobId ?? ModalRoute.of(context)!.settings.arguments as String;
-
-  /// [TicketService.watchTicket] throws synchronously if the id isn't found
-  /// in the in-memory fallback store — guard so a stale/demo ticketId can't
-  /// crash the job details screen.
-  Stream<Ticket> _ticketStream(String ticketId) {
-    try {
-      return TicketService.instance.watchTicket(ticketId);
-    } catch (_) {
-      return const Stream.empty();
-    }
-  }
+      jobId ?? ModalRoute.of(context)?.settings.arguments as String? ?? '';
 
   @override
   Widget build(BuildContext context) {
     final id = _resolveJobId(context);
+    if (id.isEmpty) {
+      return const MissingRouteArgumentScreen(title: 'Job details');
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Job details')),
       body: StreamBuilder<Job>(
@@ -76,6 +76,11 @@ class JobDetailsScreen extends StatelessWidget {
                                   style: AppTextStyles.bodySmall.copyWith(
                                     color: AppColors.textSecondary,
                                   ),
+                                ),
+                                const SizedBox(height: 8),
+                                ContactPartyButton(
+                                  phoneNumber: job.customerPhone,
+                                  partyLabel: 'customer',
                                 ),
                               ],
                             ),
@@ -127,7 +132,7 @@ class JobDetailsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               StreamBuilder<Ticket>(
-                stream: _ticketStream(job.ticketId),
+                stream: TicketService.instance.watchTicket(job.ticketId),
                 builder: (context, ticketSnapshot) {
                   final ticket = ticketSnapshot.data;
                   if (ticket == null) return const SizedBox.shrink();
@@ -143,7 +148,10 @@ class JobDetailsScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Problem details', style: AppTextStyles.titleLarge),
+                            Text(
+                              'Problem details',
+                              style: AppTextStyles.titleLarge,
+                            ),
                             const SizedBox(height: 8),
                             Text(ticket.description),
                             if (hasPhotos) ...[
@@ -155,14 +163,11 @@ class JobDetailsScreen extends StatelessWidget {
                                   itemCount: ticket.imageUrls.length,
                                   separatorBuilder: (_, _) =>
                                       const SizedBox(width: 8),
-                                  itemBuilder: (context, i) => ClipRRect(
+                                  itemBuilder: (context, i) => RemoteImage(
+                                    url: ticket.imageUrls[i],
+                                    width: 72,
+                                    height: 72,
                                     borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      ticket.imageUrls[i],
-                                      width: 72,
-                                      height: 72,
-                                      fit: BoxFit.cover,
-                                    ),
                                   ),
                                 ),
                               ),
@@ -196,7 +201,9 @@ class JobDetailsScreen extends StatelessWidget {
                                 children: ticket.clarifyingQa
                                     .map(
                                       (qa) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 8),
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,

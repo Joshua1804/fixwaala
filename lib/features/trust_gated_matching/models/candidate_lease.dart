@@ -16,6 +16,12 @@ class CandidateLease {
   final double ratingAverage;
   final int completedJobs;
   final bool verified;
+
+  /// The provider's own contact number, written by the provider when they
+  /// accept. `users/{uid}` is owner-only readable, so this is how the number
+  /// reaches the customer at confirmation without opening up user documents.
+  final String? phone;
+
   final CandidateStatus status;
   final DateTime leasedAt;
   final DateTime expiresAt;
@@ -30,6 +36,7 @@ class CandidateLease {
     required this.ratingAverage,
     required this.completedJobs,
     required this.verified,
+    this.phone,
     required this.leasedAt,
     required this.expiresAt,
     this.status = CandidateStatus.pending,
@@ -52,6 +59,7 @@ class CandidateLease {
       ratingAverage: ratingAverage,
       completedJobs: completedJobs,
       verified: verified,
+      phone: phone,
       leasedAt: leasedAt,
       expiresAt: expiresAt,
       status: status ?? this.status,
@@ -68,6 +76,7 @@ class CandidateLease {
     'ratingAverage': ratingAverage,
     'completedJobs': completedJobs,
     'verified': verified,
+    if (phone != null) 'phone': phone,
     'status': status.name,
     'leasedAt': fs.Timestamp.fromDate(leasedAt),
     'expiresAt': fs.Timestamp.fromDate(expiresAt),
@@ -88,6 +97,7 @@ class CandidateLease {
       ratingAverage: (map['ratingAverage'] as num?)?.toDouble() ?? 0,
       completedJobs: (map['completedJobs'] as num?)?.toInt() ?? 0,
       verified: map['verified'] as bool? ?? false,
+      phone: map['phone'] as String?,
       status: CandidateStatus.values.byName(
         map['status'] as String? ?? 'pending',
       ),

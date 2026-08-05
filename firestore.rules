@@ -1,44 +1,359 @@
 rules_version = '2';
+
+// Fixwaala security rules.
+//
+// The product's core promise is that a customer's exact address is not visible
+// to anyone until they personally confirm a provider. These rules are where
+// that promise is actually kept — the client-side checks are convenience only.
+//
+// Administrators are NOT a role in the mobile app. Admin access is the custom
+// claim `admin`, granted out of band and used only by the separate admin
+// website. Nothing the app ships can obtain it.
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────
     function isSignedIn() {
       return request.auth != null;
     }
 
-    match /users/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && request.auth.uid == userId;
+    function isSelf(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    match /tickets/{ticketId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() &&
-        request.resource.data.customerId == request.auth.uid;
-      allow update: if isSignedIn();
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
 
+    function existing() {
+      return resource.data;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // True when `field` is not being changed by this write.
+    function unchanged(field) {
+      return !(field in incoming()) || incoming()[field] == existing()[field];
+    }
+
+    // A provider may never assert a `verified` they have not been granted.
+    // Absent or false is always acceptable; true has to match the account.
+    function honestVerifiedClaim(providerId) {
+      return !('verified' in incoming()) ||
+        incoming().verified == false ||
+        get(/databases/$(database)/documents/users/$(providerId)).data.isVerified == true;
+    }
+
+    function ticketData(ticketId) {
+      return get(/databases/$(database)/documents/tickets/$(ticketId)).data;
+    }
+
+    // A party to the job document being written or read.
+    function isJobParty(data) {
+      return isSignedIn() &&
+        (request.auth.uid == data.customerId || request.auth.uid == data.providerId);
+    }
+
+    // ── Users ──────────────────────────────────────────────────────────
+    //
+    // A user document carries phone, address, pincode, and live GPS. Reading
+    // it wholesale is what previously exposed every customer's home address to
+    // any signed-in account.
+    //
+    // Firestore cannot return a partial document, so public provider details
+    // (display name, skills, isVerified) are mirrored to
+    // `providerPublicProfiles/{uid}` below and read from there instead.
+    match /users/{userId} {
+      allow read: if isSelf(userId) || isAdmin();
+
+      // `isVerified` is granted by an administrator after manual review, and
+      // `accountStatus` is moderation state. Neither may be self-assigned —
+      // otherwise any provider could award themselves the trust badge.
+      allow create: if isSelf(userId) &&
+        incoming().id == userId &&
+        incoming().isVerified == false &&
+        incoming().accountStatus == 'active';
+
+      allow update: if (isSelf(userId) &&
+                        unchanged('isVerified') &&
+                        unchanged('accountStatus') &&
+                        unchanged('role') &&
+                        unchanged('createdAt'))
+                    || isAdmin();
+
+      allow delete: if isAdmin();
+    }
+
+    // Public, non-sensitive provider details, safe for any signed-in user to
+    // read while choosing someone. Never contains phone, address, or location.
+    //
+    // Each provider publishes their own. That is only safe because the one
+    // field a customer is actually trusting — the Verified badge — is not
+    // taken on the provider's word: the write is rejected unless `isVerified`
+    // equals the administrator-set flag on their account document, which the
+    // `users` rules above forbid them to change. A fake name or skill list is
+    // a moderation problem; a self-awarded badge would be a hole in the trust
+    // model, and this closes it without needing a server.
+    match /providerPublicProfiles/{userId} {
+      allow read: if isSignedIn();
+
+      allow create, update: if isSelf(userId) &&
+        incoming().id == userId &&
+        incoming().isVerified ==
+          get(/databases/$(database)/documents/users/$(userId)).data.isVerified;
+
+      allow delete: if isSelf(userId) || isAdmin();
+    }
+
+    // ── Tickets ────────────────────────────────────────────────────────
+    //
+    // A matching ticket must be discoverable by nearby providers, but it
+    // carries `exactLocation`. Providers therefore read the broadcast
+    // projection at `openTickets/{id}` (no exact address, no customer name);
+    // the full document is readable only by its customer and, once assigned,
+    // the assigned provider.
+    match /tickets/{ticketId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == existing().customerId ||
+        request.auth.uid == existing().assignedProviderId ||
+        isAdmin()
+      );
+
+      allow create: if isSignedIn() &&
+        incoming().customerId == request.auth.uid;
+
+      // The customer owns their ticket. A provider may only touch a ticket
+      // already assigned to them, and may never reassign it to someone else.
+      allow update: if isSignedIn() && (
+        request.auth.uid == existing().customerId ||
+        (request.auth.uid == existing().assignedProviderId &&
+         unchanged('customerId') &&
+         unchanged('assignedProviderId')) ||
+        isAdmin()
+      );
+
+      allow delete: if isAdmin();
+
+      // A candidate lease is written by the accepting provider and read by
+      // that provider or the ticket's customer — nobody else sees who else
+      // is bidding.
       match /candidates/{providerId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn() && request.auth.uid == providerId;
-        allow update: if isSignedIn() &&
-          (request.auth.uid == providerId ||
-           request.auth.uid == get(/databases/$(database)/documents/tickets/$(ticketId)).data.customerId);
+        allow read: if isSelf(providerId) ||
+          request.auth.uid == ticketData(ticketId).customerId ||
+          isAdmin();
+
+        // The lease denormalises the provider's own details so the customer's
+        // review list needs no per-candidate lookup. `verified` is the one
+        // field they must not be free to state about themselves — it drives
+        // the trust badge a customer relies on when deciding who to let into
+        // their home — so claiming it is checked against the account record.
+        //
+        // Claiming *less* than the truth is allowed: a decline is recorded as
+        // a lease with everything blanked out, and that must not be rejected
+        // just because the provider happens to be verified.
+        allow create: if isSelf(providerId) && honestVerifiedClaim(providerId);
+
+        // The provider may withdraw; the customer selects the winner and
+        // touches nothing but `status`. Re-checked on update so a lease
+        // created honestly cannot be edited into a forged badge afterwards.
+        allow update: if (isSelf(providerId) && honestVerifiedClaim(providerId))
+          || (request.auth.uid == ticketData(ticketId).customerId &&
+              unchanged('verified'));
+
         allow delete: if false;
       }
     }
 
+    // Collection-group form of the candidates rule above.
+    //
+    // A nested `match` does **not** apply to `collectionGroup('candidates')`
+    // queries — those are matched only by a `{path=**}` rule, and without one
+    // they are denied outright. `MatchingService.loadDeclines` runs exactly
+    // such a query to rehydrate which opportunities a provider has already
+    // refused; denied, every declined ticket reappears on the next restart.
+    //
+    // This grants nothing new: a provider could already read their own leases
+    // through the nested rule. The customer's access is deliberately not
+    // repeated here, so nobody can sweep the collection group for other
+    // people's bids.
+    match /{path=**}/candidates/{providerId} {
+      allow read: if isSelf(providerId);
+    }
+
+    // Redacted broadcast projection: what an online provider is allowed to see
+    // about a ticket they have not been assigned.
+    //
+    // Published by the ticket's own customer alongside the private document.
+    // The rule enforces the redaction rather than trusting the client to have
+    // done it — a projection carrying an exact address, street address, or
+    // customer name is rejected outright, so a modified client cannot leak
+    // those fields by writing them here.
+    match /openTickets/{ticketId} {
+      allow read: if isSignedIn();
+
+      allow create, update: if isSignedIn() &&
+        incoming().customerId == request.auth.uid &&
+        !('exactLocation' in incoming()) &&
+        !('addressLine' in incoming()) &&
+        !('customerName' in incoming()) &&
+        !('phone' in incoming());
+
+      allow delete: if isSignedIn() &&
+        request.auth.uid == existing().customerId || isAdmin();
+    }
+
+    // ── Jobs ───────────────────────────────────────────────────────────
+    //
+    // Previously `allow write: if isSignedIn()`, which let any account
+    // advance, cancel, or mark-paid any job on the platform.
     match /jobs/{jobId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read: if isJobParty(existing()) || isAdmin();
+
+      allow create: if isJobParty(incoming());
+
+      // The two participants may drive the job forward, but may not rewrite
+      // who it belongs to or when it started.
+      allow update: if (isJobParty(existing()) &&
+                        unchanged('jobId') &&
+                        unchanged('ticketId') &&
+                        unchanged('customerId') &&
+                        unchanged('providerId') &&
+                        unchanged('createdAt'))
+                    || isAdmin();
+
+      allow delete: if isAdmin();
     }
 
+    // ── Payments ───────────────────────────────────────────────────────
+    //
+    // Previously world-writable, so provider earnings could be forged by
+    // writing payment records. Amounts are immutable once written.
     match /payments/{paymentId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read: if isJobParty(existing()) || isAdmin();
+
+      allow create: if isSignedIn() &&
+        request.auth.uid == incoming().customerId;
+
+      // `disputeStatus`/`disputeNote` are the admin website's moderation
+      // fields — a job party can update their own payment (e.g. a status
+      // transition) but not open, close, or annotate a dispute about
+      // themselves. Only `isAdmin()` may touch those two.
+      allow update: if (isJobParty(existing()) &&
+                        unchanged('jobId') &&
+                        unchanged('customerId') &&
+                        unchanged('providerId') &&
+                        unchanged('amount') &&
+                        unchanged('disputeStatus') &&
+                        unchanged('disputeNote'))
+                    || isAdmin();
+
+      allow delete: if isAdmin();
     }
 
+    // ── Ratings ────────────────────────────────────────────────────────
+    //
+    // Reputation is deliberately world-readable — that is what makes it a
+    // reputation. Writes are locked to the rater, and the document id is
+    // `{jobId}_{fromUserId}`, so one rater can leave exactly one rating per
+    // job. Previously any account could write unlimited 5-star ratings for
+    // itself and forge its own trust score.
     match /ratings/{ratingId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+
+      allow create: if isSignedIn() &&
+        incoming().fromUserId == request.auth.uid &&
+        incoming().toUserId != request.auth.uid &&
+        ratingId == incoming().jobId + '_' + request.auth.uid &&
+        incoming().stars is int &&
+        incoming().stars >= 1 && incoming().stars <= 5;
+
+      // A rating is a historical record, not a live document.
+      allow update, delete: if isAdmin();
+    }
+
+    // ── Moderation & safety ────────────────────────────────────────────
+    //
+    // Created by the app, reviewed in the admin website. A reporter may file
+    // and read their own submissions but never edit them afterwards, and
+    // never see anyone else's.
+    match /reports/{reportId} {
+      allow read: if isSignedIn() &&
+        request.auth.uid == existing().reporterId || isAdmin();
+      allow create: if isSignedIn() &&
+        incoming().reporterId == request.auth.uid &&
+        incoming().status == 'open';
+      allow update, delete: if isAdmin();
+    }
+
+    match /safetyAlerts/{alertId} {
+      allow read: if isSignedIn() &&
+        request.auth.uid == existing().userId || isAdmin();
+      allow create: if isSignedIn() &&
+        incoming().userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Written only by the admin website; the app has no reason to see it.
+    // Every privileged action the admin website takes writes one of these —
+    // see `docs/ADMIN_WEB.md`. Immutable once written: an audit trail that
+    // could be edited by the same people it is watching is not one.
+    match /auditEvents/{eventId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ── Admin directory (role & permission management) ─────────────────
+    //
+    // Mirrors who currently holds the `admin` custom claim, for the admin
+    // website's own UI. This is a read-only mirror, not the source of truth:
+    // the claim itself can only be granted by the Firebase Admin SDK, which
+    // means a trusted operator running `scripts/admin/grant_admin_claim.js`
+    // with a service-account key — the client SDK cannot set claims on
+    // itself or anyone else, by design, with or without these rules. The
+    // script writes this document in the same run it grants the claim, so
+    // the two never drift.
+    match /admins/{userId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ── Platform settings ────────────────────────────────────────────────
+    //
+    // A single tunables document the admin website edits directly — no
+    // Admin SDK needed here, since by the time an operator is signed into
+    // the website their ID token already carries the claim the script
+    // granted, and `isAdmin()` reads that token.
+    match /platformSettings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── Announcements ────────────────────────────────────────────────────
+    //
+    // Admin-authored banners. Readable by any signed-in user so the app can
+    // show them; `active` and `expiresAt` are what a future in-app banner
+    // widget would filter on.
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Device tokens for push. A user manages only their own.
+    //
+    // Reads and deletes carry no request body, so ownership is checked against
+    // the stored document; writes are checked against the incoming one.
+    match /deviceTokens/{tokenId} {
+      allow read, delete: if isSignedIn() &&
+        (request.auth.uid == resource.data.userId || isAdmin());
+      allow create, update: if isSignedIn() &&
+        request.auth.uid == request.resource.data.userId;
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

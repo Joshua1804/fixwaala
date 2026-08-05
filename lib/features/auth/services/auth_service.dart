@@ -1,16 +1,23 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/foundation.dart';
 
 import '../../../core/models/enums.dart';
+import '../../../core/models/user_facing_exception.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/routes/route_names.dart';
+import '../../../core/services/account_service.dart';
 import '../../../core/services/firebase_service.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/services/provider_directory_service.dart';
 
 /// A simulation-mode auth error shaped like [fb_auth.FirebaseAuthException]
 /// (same `code`/`message` fields) so [AuthService.friendlyMessage] can
 /// handle both without the UI caring which mode is active.
-class AuthException implements Exception {
+class AuthException implements UserFacingException {
   final String code;
+  @override
   final String message;
   AuthException(this.code, this.message);
 
@@ -45,20 +52,15 @@ class AuthService {
   // ── Registration ──────────────────────────────────────────────────
 
   /// Creates a new Customer or Provider account and sends a verification
-  /// email. Admin accounts can never be created through this method —
-  /// admin access is provisioned separately (see [AdminService]) and is
-  /// never selectable from the public registration UI.
+  /// email. Those are the only two roles the app knows about — administrator
+  /// access is a Firebase custom claim granted out of band and is used solely
+  /// by the separate admin website.
   Future<AppUser> register({
     required String name,
     required String email,
     required String password,
     required UserRole role,
   }) async {
-    if (role == UserRole.admin) {
-      throw ArgumentError(
-        'Admin accounts cannot be created through registration.',
-      );
-    }
     final trimmedEmail = email.trim().toLowerCase();
     final trimmedName = name.trim();
 
@@ -179,6 +181,7 @@ class AuthService {
       await docRef.set(user.toMap());
     }
     _currentUser = user;
+    _cacheStanding(user);
     return user;
   }
 
@@ -271,7 +274,7 @@ class AuthService {
         .collection('users')
         .doc(updated.id)
         .update({
-          if (phone != null) 'phone': phone,
+          'phone': ?phone,
           if (customerProfile != null)
             'customerProfile': customerProfile.toMap(),
           if (providerProfile != null)
@@ -279,6 +282,47 @@ class AuthService {
           'onboardingComplete': true,
           'updatedAt': DateTime.now().toIso8601String(),
         });
+  }
+
+  // ── Profile editing ──────────────────────────────────────────────
+
+  /// Persists the editable fields of the signed-in user's own profile.
+  ///
+  /// The profile tab previously called `copyWith(...)` and discarded the
+  /// result, so "Profile updated successfully" was shown for a write that
+  /// never happened. Callers must await this and only report success once it
+  /// completes.
+  Future<AppUser> updateProfile({String? name, String? phone}) async {
+    final current = _currentUser;
+    if (current == null) {
+      throw AuthException('no-current-user', 'You must be signed in.');
+    }
+
+    final trimmedName = name?.trim();
+    final trimmedPhone = phone?.trim();
+
+    final updated = current.copyWith(
+      name: trimmedName,
+      phone: trimmedPhone,
+      updatedAt: DateTime.now(),
+    );
+    _currentUser = updated;
+    _userChanges.add(updated);
+
+    if (!_live) {
+      _userDb[updated.id] = updated;
+      return updated;
+    }
+
+    await FirebaseService.instance.firestore
+        .collection('users')
+        .doc(updated.id)
+        .update({
+          'name': ?trimmedName,
+          'phone': ?trimmedPhone,
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+    return updated;
   }
 
   // ── Provider presence ────────────────────────────────────────────
@@ -311,6 +355,59 @@ class AuthService {
 
   // ── Session ──────────────────────────────────────────────────────
 
+  /// Broadcasts local mutations (profile edits, verification, onboarding) so
+  /// [currentUserStream] reflects them immediately rather than waiting for a
+  /// Firestore round trip — and so simulation mode has a change signal at all.
+  static final StreamController<AppUser?> _userChanges =
+      StreamController<AppUser?>.broadcast();
+
+  /// The signed-in user, as a stream.
+  ///
+  /// Replaces `FutureBuilder(future: currentUser())` built inside `build()`,
+  /// which created a new future on every rebuild — re-firing a billable
+  /// Firestore read and flashing the loading state each time. Emits `null`
+  /// when signed out, so callers can drive their whole tree from one
+  /// subscription.
+  Stream<AppUser?> get currentUserStream {
+    if (!_live) {
+      // Simulation mode has no auth or document streams to listen to; the
+      // in-memory user only changes when this service changes it.
+      return _userChanges.stream.map((user) => user ?? _currentUser);
+    }
+
+    return FirebaseService.instance.auth.authStateChanges().asyncExpand((
+      fUser,
+    ) {
+      if (fUser == null) {
+        _currentUser = null;
+        AccountService.instance.clear();
+        return Stream<AppUser?>.value(null);
+      }
+
+      // Firestore emits snapshots optimistically for local pending writes, so
+      // an edit made through this service appears here before the server
+      // acknowledges it — no separate merge with [_userChanges] needed.
+      return FirebaseService.instance.firestore
+          .collection('users')
+          .doc(fUser.uid)
+          .snapshots()
+          .map<AppUser?>((doc) {
+            if (!doc.exists || doc.data() == null) return null;
+            final user = AppUser.fromMap(
+              doc.data()!,
+            ).copyWith(emailVerified: fUser.emailVerified);
+            _currentUser = user;
+            _cacheStanding(user);
+            // Keeps `providerPublicProfiles/{uid}` in step with the account.
+            // Driven from the owner's own listener because `users/{uid}` is
+            // owner-readable — nobody else could observe the change. No-ops
+            // for customers and when the projection has not changed.
+            unawaited(ProviderDirectoryService.instance.publishSelf(user));
+            return user;
+          });
+    });
+  }
+
   Future<AppUser?> currentUser() async {
     if (!_live) return _currentUser;
 
@@ -332,11 +429,34 @@ class AuthService {
       _currentUser = AppUser.fromMap(
         doc.data()!,
       ).copyWith(emailVerified: fUser.emailVerified);
+      _cacheStanding(_currentUser!);
     } else {
       _currentUser = null;
     }
     return _currentUser;
   }
+
+  /// Mirrors the standing carried on a user document into [AccountService],
+  /// which is what the service layer consults before job, payment, and rating
+  /// actions. The admin website owns the field; the app only observes it.
+  void _cacheStanding(AppUser user) {
+    AccountService.instance.cacheStatus(user.id, user.accountStatus);
+
+    // Register for push once per session, whether the user just signed in or
+    // returned to an existing session on relaunch. A token registered before
+    // auth resolves cannot be attributed to anybody.
+    if (_pushRegisteredFor != user.id) {
+      _pushRegisteredFor = user.id;
+      unawaited(
+        NotificationService.instance.registerDevice(
+          userId: user.id,
+          role: user.role,
+        ),
+      );
+    }
+  }
+
+  static String? _pushRegisteredFor;
 
   /// Looks up any user by id — used to show a provider's public profile to
   /// a customer reviewing candidates, distinct from [currentUser] which
@@ -354,6 +474,9 @@ class AuthService {
 
   Future<void> signOut() async {
     _currentUser = null;
+    _pushRegisteredFor = null;
+    AccountService.instance.clear();
+    ProviderDirectoryService.instance.endSession();
     if (_live) {
       await FirebaseService.instance.auth.signOut();
     }
@@ -366,7 +489,6 @@ class AuthService {
   Future<String> resolveInitialRoute() async {
     final user = await currentUser();
     if (user == null) return RouteNames.roleSelection;
-    if (user.role == UserRole.admin) return RouteNames.adminDashboard;
     if (!user.emailVerified) return RouteNames.emailVerification;
     if (!user.onboardingComplete) {
       return user.role == UserRole.provider
@@ -380,10 +502,9 @@ class AuthService {
 
   /// All users seen during this app session (simulation mode only).
   ///
-  /// Used by the Admin Panel's Account Management screen so admins have
-  /// real accounts to act on. Returns an empty list once Firebase is
-  /// configured — that path should query Firestore's `users` collection
-  /// directly instead.
+  /// Returns an empty list once Firebase is configured. Kept for simulation
+  /// -mode fixtures only — no production screen depends on it.
+  @visibleForTesting
   List<AppUser> knownDemoUsers() {
     if (_live) return const [];
     return _userDb.values.toList();

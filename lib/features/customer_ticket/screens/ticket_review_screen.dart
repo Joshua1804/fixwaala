@@ -10,6 +10,8 @@ import '../../ai_assist/models/clarifying_qa.dart';
 import '../../auth/services/auth_service.dart';
 import '../models/ticket_model.dart';
 import '../services/ticket_service.dart';
+import '../../../core/widgets/remote_image.dart';
+import '../../../core/utils/error_messages.dart';
 
 class TicketReviewScreen extends StatefulWidget {
   const TicketReviewScreen({super.key});
@@ -21,6 +23,65 @@ class TicketReviewScreen extends StatefulWidget {
 class _TicketReviewScreenState extends State<TicketReviewScreen> {
   bool _submitting = false;
   String? _error;
+
+  /// The address detail sent to the assigned provider.
+  ///
+  /// `args['address']` was read here but nothing in the flow ever set it —
+  /// CreateTicket did not collect an address, AiAssist did not forward one,
+  /// and [LocationService.reverseGeocode] existed with no callers at all. So
+  /// `Ticket.addressLine` was always null and the provider arrived with bare
+  /// GPS coordinates: no flat number, no landmark, no gate code.
+  final TextEditingController _addressController = TextEditingController();
+  bool _addressSeeded = false;
+  bool _locating = false;
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  /// Defaults to the address the customer already gave at onboarding.
+  Future<void> _seedAddress() async {
+    if (_addressSeeded) return;
+    _addressSeeded = true;
+    final user = await AuthService.instance.currentUser();
+    final profile = user?.customerProfile;
+    final saved = [
+      profile?.addressLine,
+      profile?.city,
+      profile?.pincode,
+    ].where((p) => p != null && p.trim().isNotEmpty).join(', ');
+    if (saved.isNotEmpty && mounted) {
+      setState(() => _addressController.text = saved);
+    }
+  }
+
+  /// Fills the field from the device's current position.
+  Future<void> _useCurrentLocation() async {
+    setState(() => _locating = true);
+    try {
+      final point = await LocationService.instance.getCurrentLocation();
+      final resolved = point == null
+          ? null
+          : await LocationService.instance.reverseGeocode(point);
+      if (!mounted) return;
+      setState(() {
+        _locating = false;
+        if (resolved != null) {
+          _addressController.text = resolved;
+        } else {
+          _error = 'Could not resolve your address. Please type it in.';
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _locating = false;
+        _error = ErrorMessages.friendly(error);
+      });
+    }
+  }
 
   Future<void> _submit(Map<String, dynamic> args) async {
     setState(() {
@@ -66,7 +127,9 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
         approximateLocation: location,
         status: TicketStatus.draft,
         createdAt: DateTime.now(),
-        addressLine: args['address']?.toString(),
+        addressLine: _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
         aiSummary: args['aiSummary']?.toString(),
         recommendedEquipment: List<String>.from(
           args['recommendedEquipment'] ?? const [],
@@ -78,10 +141,9 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
 
       final ticketId = await TicketService.instance.createTicket(draft);
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(
-        RouteNames.matchingProgress,
-        arguments: ticketId,
-      );
+      Navigator.of(
+        context,
+      ).pushReplacementNamed(RouteNames.matchingProgress, arguments: ticketId);
     } on fs.FirebaseException catch (e) {
       if (!mounted) return;
       setState(() => _error = _friendlyFirestoreMessage(e));
@@ -108,6 +170,7 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
         const {};
+    _seedAddress();
     return Scaffold(
       appBar: AppBar(title: const Text('Review request')),
       body: Padding(
@@ -129,9 +192,28 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
             ),
             if ((args['aiSummary'] as String?)?.isNotEmpty ?? false)
               _SummaryTile(label: 'AI summary', value: args['aiSummary']),
-            _SummaryTile(
-              label: 'Location',
-              value: args['address'] ?? 'Current',
+            const SizedBox(height: 8),
+            TextField(
+              controller: _addressController,
+              textCapitalization: TextCapitalization.words,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'Address details',
+                hintText: 'Flat / house number, landmark, gate code',
+                border: const OutlineInputBorder(),
+                helperText: 'Only shared once you confirm a provider.',
+                suffixIcon: IconButton(
+                  tooltip: 'Use my current location',
+                  icon: _locating
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location_rounded),
+                  onPressed: _locating ? null : _useCurrentLocation,
+                ),
+              ),
             ),
             if ((args['images'] as List?)?.isNotEmpty ?? false) ...[
               const SizedBox(height: 8),
@@ -143,14 +225,11 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
                   scrollDirection: Axis.horizontal,
                   itemCount: (args['images'] as List).length,
                   separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, i) => ClipRRect(
+                  itemBuilder: (context, i) => RemoteImage(
+                    url: (args['images'] as List)[i].toString(),
+                    width: 72,
+                    height: 72,
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      (args['images'] as List)[i].toString(),
-                      width: 72,
-                      height: 72,
-                      fit: BoxFit.cover,
-                    ),
                   ),
                 ),
               ),

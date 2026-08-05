@@ -10,6 +10,7 @@ import '../../geo_broadcast/services/provider_presence_service.dart';
 import '../models/job_model.dart';
 import '../services/job_service.dart';
 import '../widgets/job_status_ui.dart';
+import '../../../core/widgets/missing_route_argument_screen.dart';
 
 /// Provider's Status Update Screen.
 ///
@@ -21,8 +22,13 @@ class StatusUpdateScreen extends StatelessWidget {
   final String? jobId;
   const StatusUpdateScreen({super.key, this.jobId});
 
+  /// Empty when this route was opened without a job id — [build] guards on
+  /// it and shows a real message. This used to be
+  /// `ModalRoute.of(context)!.settings.arguments as String`, which threw on
+  /// both the `!` and the cast, so arriving here from a notification tap or a
+  /// restored navigation stack crashed the screen.
   String _resolveJobId(BuildContext context) =>
-      jobId ?? ModalRoute.of(context)!.settings.arguments as String;
+      jobId ?? ModalRoute.of(context)?.settings.arguments as String? ?? '';
 
   Future<void> _run(
     BuildContext context,
@@ -79,6 +85,9 @@ class StatusUpdateScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final id = _resolveJobId(context);
+    if (id.isEmpty) {
+      return const MissingRouteArgumentScreen(title: 'Update status');
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Update status')),
       body: StreamBuilder<Job>(

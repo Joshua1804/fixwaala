@@ -9,6 +9,7 @@ import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../../auth/services/auth_service.dart';
 import '../services/rating_service.dart';
+import '../../../core/utils/error_messages.dart';
 
 /// Rating and Review Screen (Module 9).
 ///
@@ -31,6 +32,16 @@ class _RatingScreenState extends State<RatingScreen> {
       ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
       const {};
 
+  /// Where this user belongs after rating.
+  ///
+  /// Both exits used to be hardcoded to [RouteNames.customerHome], so a
+  /// provider who rated a customer had their entire navigation stack replaced
+  /// with the customer app — and `pushNamedAndRemoveUntil` left them no way
+  /// back.
+  String _homeRouteFor(AppUser user) => user.role == UserRole.provider
+      ? RouteNames.providerHome
+      : RouteNames.customerHome;
+
   Future<void> _submit(AppUser me, Map<String, dynamic> args) async {
     setState(() {
       _submitting = true;
@@ -50,9 +61,9 @@ class _RatingScreenState extends State<RatingScreen> {
       if (!mounted) return;
       Navigator.of(
         context,
-      ).pushNamedAndRemoveUntil(RouteNames.customerHome, (route) => false);
+      ).pushNamedAndRemoveUntil(_homeRouteFor(me), (route) => false);
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = ErrorMessages.friendly(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -102,7 +113,7 @@ class _RatingScreenState extends State<RatingScreen> {
                     label: 'Back to home',
                     onPressed: () =>
                         Navigator.of(context).pushNamedAndRemoveUntil(
-                          RouteNames.customerHome,
+                          _homeRouteFor(me),
                           (route) => false,
                         ),
                   ),
@@ -122,20 +133,32 @@ class _RatingScreenState extends State<RatingScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    5,
-                    (i) => IconButton(
-                      iconSize: 40,
-                      onPressed: () => setState(() => _stars = i + 1),
-                      icon: Icon(
-                        i < _stars
-                            ? Icons.star_rounded
-                            : Icons.star_border_rounded,
-                        color: AppColors.accent,
-                      ),
-                    ),
+                // A screen reader previously announced five identical,
+                // unlabelled buttons here, with no way to tell which was
+                // selected or what tapping one would do.
+                Semantics(
+                  container: true,
+                  label: 'Rating',
+                  value: '$_stars out of 5 stars',
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (i) {
+                      final value = i + 1;
+                      return IconButton(
+                        iconSize: 40,
+                        tooltip: '$value star${value == 1 ? '' : 's'}',
+                        onPressed: () => setState(() => _stars = value),
+                        icon: Semantics(
+                          selected: value <= _stars,
+                          child: Icon(
+                            i < _stars
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
+                            color: AppColors.accent,
+                          ),
+                        ),
+                      );
+                    }),
                   ),
                 ),
                 const SizedBox(height: 16),

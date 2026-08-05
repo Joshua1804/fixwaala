@@ -11,6 +11,7 @@ import '../../service_lifecycle/services/job_service.dart';
 import '../models/ticket_model.dart';
 import '../services/ticket_service.dart';
 import '../widgets/ticket_status_ui.dart';
+import '../../../core/utils/formatting.dart';
 
 /// Full-page "My Tickets" accessible from the Tickets tab → "See all".
 /// Provides the same Active / History tabs as the embedded tab, but as a
@@ -227,7 +228,7 @@ class _TicketHistoryCard extends StatelessWidget {
                 Icon(Icons.schedule, size: 14, color: AppColors.textHint),
                 const SizedBox(width: 4),
                 Text(
-                  _formatDate(ticket.createdAt),
+                  RelativeTime.format(ticket.createdAt),
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.textHint,
                   ),
@@ -257,15 +258,5 @@ class _TicketHistoryCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${dt.day}/${dt.month}/${dt.year}';
   }
 }

@@ -7,6 +7,7 @@ import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../../auth/services/auth_service.dart';
 import '../services/report_service.dart';
+import '../../../core/utils/error_messages.dart';
 
 /// Report/Dispute Screen (Module 11).
 ///
@@ -40,7 +41,7 @@ class _ReportScreenState extends State<ReportScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Submit this report?'),
         content: const Text(
-          'Our admin team will review it. False reports may affect your account standing.',
+          'Our safety team will review it. False reports may affect your account standing.',
         ),
         actions: [
           TextButton(
@@ -80,7 +81,7 @@ class _ReportScreenState extends State<ReportScreen> {
       );
       Navigator.of(context).pop();
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = ErrorMessages.friendly(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

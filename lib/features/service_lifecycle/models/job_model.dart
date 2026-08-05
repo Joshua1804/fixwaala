@@ -81,6 +81,15 @@ class Job {
   final String providerName;
   final String customerId;
   final String customerName;
+
+  /// Contact numbers for the two parties, denormalised onto the job.
+  ///
+  /// `jobs` is readable only by its customer and provider, so this is the
+  /// natural place for them — neither party can read the other's user
+  /// document. Each side supplies its own: the customer at creation, the
+  /// provider via their candidate lease.
+  final String? customerPhone;
+  final String? providerPhone;
   final ServiceCategory category;
   final JobStatus status;
   final RepairEstimate? estimate;
@@ -107,6 +116,8 @@ class Job {
     required this.providerName,
     required this.customerId,
     required this.customerName,
+    this.customerPhone,
+    this.providerPhone,
     required this.category,
     required this.status,
     required this.history,
@@ -152,6 +163,8 @@ class Job {
       providerName: providerName,
       customerId: customerId,
       customerName: customerName,
+      customerPhone: customerPhone,
+      providerPhone: providerPhone,
       category: category,
       status: status ?? this.status,
       estimate: estimate ?? this.estimate,
@@ -181,6 +194,8 @@ class Job {
     'providerName': providerName,
     'customerId': customerId,
     'customerName': customerName,
+    if (customerPhone != null) 'customerPhone': customerPhone,
+    if (providerPhone != null) 'providerPhone': providerPhone,
     'category': category.name,
     'status': status.name,
     if (estimate != null) 'estimate': estimate!.toMap(),
@@ -198,8 +213,7 @@ class Job {
     if (acceptedAt != null) 'acceptedAt': fs.Timestamp.fromDate(acceptedAt!),
     if (enRouteAt != null) 'enRouteAt': fs.Timestamp.fromDate(enRouteAt!),
     if (arrivedAt != null) 'arrivedAt': fs.Timestamp.fromDate(arrivedAt!),
-    if (completedAt != null)
-      'completedAt': fs.Timestamp.fromDate(completedAt!),
+    if (completedAt != null) 'completedAt': fs.Timestamp.fromDate(completedAt!),
     if (closedAt != null) 'closedAt': fs.Timestamp.fromDate(closedAt!),
   };
 
@@ -210,6 +224,8 @@ class Job {
     providerName: map['providerName'] as String? ?? '',
     customerId: map['customerId'] as String? ?? '',
     customerName: map['customerName'] as String? ?? '',
+    customerPhone: map['customerPhone'] as String?,
+    providerPhone: map['providerPhone'] as String?,
     category: ServiceCategory.values.byName(
       map['category'] as String? ?? 'unknown',
     ),

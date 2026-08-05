@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fixwaala/core/models/enums.dart';
-import 'package:fixwaala/features/admin_panel/services/account_service.dart';
+import 'package:fixwaala/core/services/account_service.dart';
 import 'package:fixwaala/features/payment/services/payment_service.dart';
 import 'package:fixwaala/features/service_lifecycle/models/job_model.dart';
 import 'package:fixwaala/features/service_lifecycle/services/job_service.dart';
@@ -118,7 +118,7 @@ void main() {
 
     test('a suspended customer cannot make a payment', () async {
       final jobId = await completedJob();
-      await AccountService.instance.suspend('c1', reason: 'test');
+      AccountService.instance.cacheStatus('c1', AccountStatus.suspended);
       expect(
         () => PaymentService.instance.simulate(
           jobId: jobId,

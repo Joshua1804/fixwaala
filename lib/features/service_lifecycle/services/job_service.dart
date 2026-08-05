@@ -1,18 +1,21 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart'
-    show CollectionReference, FirebaseException;
+import 'package:cloud_firestore/cloud_firestore.dart' show CollectionReference;
 import 'package:flutter/foundation.dart';
 
 import '../../../core/models/enums.dart';
+import '../../../core/models/user_facing_exception.dart';
 import '../../../core/services/firebase_service.dart';
-import '../../admin_panel/services/account_service.dart';
+import '../../../core/services/session_scoped_sync.dart';
+import '../../../core/services/account_service.dart';
+import '../../customer_ticket/services/ticket_service.dart';
 import '../models/job_model.dart';
 
 /// Thrown when a requested job action is not valid for the job's current
 /// [JobStatus]. Screens should catch this and show a helpful message
 /// rather than letting the action silently fail.
-class JobTransitionException implements Exception {
+class JobTransitionException implements UserFacingException {
+  @override
   final String message;
   JobTransitionException(this.message);
 
@@ -38,45 +41,36 @@ class JobService {
   int _seq = 0;
   final StreamController<Job> _controller = StreamController<Job>.broadcast();
 
-  StreamSubscription? _liveSub;
+  late final SessionScopedSync _sync = SessionScopedSync(
+    debugName: 'JobService',
+    // A user is the customer on some jobs and the provider on others, and
+    // Firestore cannot OR across two fields in one indexable query.
+    queriesForUser: (uid) => [
+      _col.where('customerId', isEqualTo: uid),
+      _col.where('providerId', isEqualTo: uid),
+    ],
+    onChange: (change) {
+      final job = Job.fromMap(change.doc.data()!);
+      instance._jobs[job.jobId] = job;
+      instance._controller.add(job);
+    },
+    onClear: () => instance._jobs.clear(),
+  );
 
   bool get _live => FirebaseService.instance.isInitialized;
   CollectionReference<Map<String, dynamic>> get _col =>
       FirebaseService.instance.firestore.collection('jobs');
 
-  /// Opens the live Firestore sync. Call once at app startup (after
-  /// Firebase is initialized). No-op in simulation mode.
-  Future<void> initialize() async {
-    if (!_live) return;
-    await _liveSub?.cancel();
-    _liveSub = _col.snapshots().listen(
-      (snapshot) {
-        for (final change in snapshot.docChanges) {
-          final job = Job.fromMap(change.doc.data()!);
-          _jobs[job.jobId] = job;
-          _controller.add(job);
-        }
-      },
-      onError: (Object error) {
-        debugPrint('[JobService] Firestore jobs listener error: $error');
-      },
-    );
-  }
+  /// Binds the live Firestore sync to the signed-in user. Call once at app
+  /// startup; it waits for auth itself. No-op in simulation mode.
+  Future<void> initialize() => _sync.start();
+
+  /// Ends the session sync and drops every cached job.
+  Future<void> endSession() => _sync.stop();
 
   Future<void> _persist(Job job) async {
     if (!_live) return;
-    try {
-      await _col.doc(job.jobId).set(job.toMap());
-    } on FirebaseException catch (e) {
-      if (kDebugMode && e.code == 'permission-denied') {
-        debugPrint(
-          '[JobService] Firestore denied job write; continuing in local '
-          'cache only. Update Firestore rules before release.',
-        );
-        return;
-      }
-      rethrow;
-    }
+    await _col.doc(job.jobId).set(job.toMap());
   }
 
   /// Clears all in-memory state. Test-only.
@@ -97,6 +91,8 @@ class JobService {
     required String customerId,
     required String customerName,
     required ServiceCategory category,
+    String? customerPhone,
+    String? providerPhone,
   }) async {
     _seq += 1;
     final now = DateTime.now();
@@ -107,6 +103,8 @@ class JobService {
       providerName: providerName,
       customerId: customerId,
       customerName: customerName,
+      customerPhone: customerPhone,
+      providerPhone: providerPhone,
       category: category,
       status: JobStatus.assigned,
       history: [JobEventLogEntry(JobEvent.customerConfirmed, now)],
@@ -213,6 +211,53 @@ class JobService {
     _jobs[updated.jobId] = updated;
     _controller.add(updated);
     unawaited(_persist(updated));
+    unawaited(_mirrorTicketStatus(updated));
+  }
+
+  /// Projects a job's state back onto its parent ticket.
+  ///
+  /// [TicketStatus] has fourteen values but only ever reached `assigned`:
+  /// everything past that point is driven by [JobStatus], and nothing carried
+  /// it across. Because `Ticket.isActive` is true for anything that is not
+  /// completed/paid/closed/cancelled/failed, **every ticket a customer ever
+  /// created stayed active forever** — the History tab could never populate
+  /// and the Active list grew without bound.
+  ///
+  /// Every job transition funnels through [_commit], so mirroring here covers
+  /// the whole state machine rather than each call site remembering to do it.
+  Future<void> _mirrorTicketStatus(Job job) async {
+    final mapped = _ticketStatusFor(job);
+    try {
+      await TicketService.instance.updateStatus(job.ticketId, mapped);
+    } catch (error) {
+      // A ticket that has been removed must not break the job it belonged to.
+      debugPrint('[JobService] Could not mirror status to ticket: $error');
+    }
+  }
+
+  /// The ticket status implied by a job's current state.
+  ///
+  /// Closure and payment outrank the lifecycle status: a completed job that
+  /// has been paid for reads as `paid`, and one that is fully wrapped up
+  /// reads as `closed`.
+  static TicketStatus _ticketStatusFor(Job job) {
+    if (job.status == JobStatus.cancelled) return TicketStatus.cancelled;
+    if (job.closedAt != null) return TicketStatus.closed;
+    if (job.paid) return TicketStatus.paid;
+
+    return switch (job.status) {
+      JobStatus.assigned => TicketStatus.assigned,
+      JobStatus.accepted => TicketStatus.assigned,
+      JobStatus.enRoute => TicketStatus.providerEnRoute,
+      JobStatus.arrived => TicketStatus.providerArrived,
+      JobStatus.checkedIn => TicketStatus.providerArrived,
+      JobStatus.inspecting => TicketStatus.underInspection,
+      JobStatus.estimateSubmitted => TicketStatus.awaitingEstimateApproval,
+      JobStatus.workInProgress => TicketStatus.inProgress,
+      JobStatus.completionRequested => TicketStatus.inProgress,
+      JobStatus.completed => TicketStatus.completed,
+      JobStatus.cancelled => TicketStatus.cancelled,
+    };
   }
 
   void _requireStatus(Job job, JobStatus expected, String actionLabel) {
@@ -428,11 +473,18 @@ class JobService {
     _maybeClose(jobId);
   }
 
+  /// Closes a job once nothing is outstanding on either side.
+  ///
+  /// This previously ignored [Job.providerRated], so a job closed as soon as
+  /// the customer rated — while the provider was still being offered "Rate
+  /// customer" on a job the app considered finished. Closure now means what
+  /// it says: work done, money settled, both parties have had their say.
   void _maybeClose(String jobId) {
     final job = _require(jobId);
     if (job.status == JobStatus.completed &&
         job.paid &&
         job.customerRated &&
+        job.providerRated &&
         job.closedAt == null) {
       _commit(job.copyWith(closedAt: DateTime.now()));
     }

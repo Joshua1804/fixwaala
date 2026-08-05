@@ -28,26 +28,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
   late final Animation<double> _card2Fade;
   late final Animation<Offset> _card2Slide;
 
-  // Hidden admin trigger variables
-  int _logoTapCount = 0;
-  DateTime? _lastLogoTap;
-
-  void _handleLogoTap() {
-    final now = DateTime.now();
-    if (_lastLogoTap == null ||
-        now.difference(_lastLogoTap!) > const Duration(seconds: 2)) {
-      _logoTapCount = 1;
-    } else {
-      _logoTapCount++;
-    }
-    _lastLogoTap = now;
-
-    if (_logoTapCount >= 5) {
-      _logoTapCount = 0;
-      Navigator.of(context).pushNamed(RouteNames.adminLogin);
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -153,23 +133,20 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          GestureDetector(
-                            onTap: _handleLogoTap,
-                            child: Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                ),
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2),
                               ),
-                              child: const Icon(
-                                Icons.handyman_rounded,
-                                color: Colors.white,
-                                size: 28,
-                              ),
+                            ),
+                            child: const Icon(
+                              Icons.handyman_rounded,
+                              color: Colors.white,
+                              size: 28,
                             ),
                           ),
                           const SizedBox(height: 24),
@@ -202,7 +179,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                         icon: Icons.home_repair_service_rounded,
                         title: AppStrings.roleCustomer,
                         subtitle:
-                            'Book verified plumbers, electricians\n& carpenters near you.',
+                            'Book rated plumbers, electricians\n& carpenters near you.',
                         accentColor: AppColors.accentLight,
                         onTap: () => _pick(UserRole.customer),
                       ),

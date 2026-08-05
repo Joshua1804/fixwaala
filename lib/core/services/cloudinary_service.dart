@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 /// Thin REST client for Cloudinary's unsigned upload endpoint. Returns null
@@ -13,15 +12,30 @@ class CloudinaryService {
   CloudinaryService._();
   static final CloudinaryService instance = CloudinaryService._();
 
-  String? get _cloudName {
-    final name = dotenv.env['CLOUDINARY_CLOUD_NAME'];
-    return (name == null || name.trim().isEmpty) ? null : name.trim();
-  }
+  // Supplied at build time rather than read from a bundled `.env` asset.
+  // Assets ship inside the APK as plain files, so anything placed there is
+  // readable by anyone with the app — which is why the Gemini key that used to
+  // live alongside these has moved server-side entirely.
+  //
+  // A cloud name and an *unsigned* upload preset are designed to be public
+  // (browsers use them directly), so compiling them in is appropriate. Scope
+  // the preset to a folder and rate-limit it in the Cloudinary console.
+  //
+  //   flutter build apk \
+  //     --dart-define=CLOUDINARY_CLOUD_NAME=... \
+  //     --dart-define=CLOUDINARY_UPLOAD_PRESET=...
+  static const String _cloudNameDefine = String.fromEnvironment(
+    'CLOUDINARY_CLOUD_NAME',
+  );
+  static const String _uploadPresetDefine = String.fromEnvironment(
+    'CLOUDINARY_UPLOAD_PRESET',
+  );
 
-  String? get _uploadPreset {
-    final preset = dotenv.env['CLOUDINARY_UPLOAD_PRESET'];
-    return (preset == null || preset.trim().isEmpty) ? null : preset.trim();
-  }
+  String? get _cloudName =>
+      _cloudNameDefine.trim().isEmpty ? null : _cloudNameDefine.trim();
+
+  String? get _uploadPreset =>
+      _uploadPresetDefine.trim().isEmpty ? null : _uploadPresetDefine.trim();
 
   Future<String?> uploadImage(File file) async {
     final cloudName = _cloudName;

@@ -1,20 +1,31 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart'
-    show CollectionReference, FirebaseException;
+import 'package:cloud_firestore/cloud_firestore.dart' show CollectionReference;
 import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/enums.dart';
+import '../../../core/models/user_facing_exception.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/firebase_service.dart';
+import '../../../core/utils/eta_estimate.dart';
 import '../../../core/services/location_service.dart';
 import '../../auth/services/auth_service.dart';
 import '../../customer_ticket/services/ticket_service.dart';
 import '../../provider_dashboard/services/analytics_service.dart';
-import '../../provider_verification/services/verification_service.dart';
+import '../../service_lifecycle/models/job_model.dart';
 import '../../service_lifecycle/services/job_service.dart';
 import '../models/candidate_lease.dart';
+
+/// Thrown when two customers (or two taps) race for the same provider.
+class MatchingConflictException implements UserFacingException {
+  @override
+  final String message;
+  MatchingConflictException(this.message);
+
+  @override
+  String toString() => message;
+}
 
 /// Implements the Trust-Gated Matching flow (Module 6 — core feature).
 ///
@@ -60,13 +71,9 @@ class MatchingService {
             providerLocation,
             ticket.approximateLocation,
           );
-    // Rough ETA at an assumed ~30 km/h average urban travel speed.
-    final etaMinutes = (distanceKm * 2).round().clamp(1, 999);
+    final etaMinutes = EtaEstimate.minutesFor(distanceKm);
 
     final analytics = await AnalyticsService.instance.load(providerId);
-    final verificationStatus = await VerificationService.instance.status(
-      providerId,
-    );
 
     final now = DateTime.now();
     final expiresAt = now.add(
@@ -81,7 +88,9 @@ class MatchingService {
       etaMinutes: etaMinutes,
       ratingAverage: analytics.ratingAverage,
       completedJobs: analytics.completedJobs,
-      verified: verificationStatus == VerificationStatus.approved,
+      // Granted by an administrator in the admin website; the app only reads it.
+      verified: provider?.isVerified ?? false,
+      phone: provider?.phone,
       leasedAt: now,
       expiresAt: expiresAt,
     );
@@ -95,18 +104,78 @@ class MatchingService {
     return lease;
   }
 
-  /// Provider taps Decline: no persistence needed — the ticket keeps
-  /// broadcasting to every other online, in-range provider unaffected.
-  /// The card is simply removed from this provider's own list locally.
+  /// Provider taps Decline.
+  ///
+  /// This was an empty method body: the card disappeared only because the
+  /// widget set a local `_declined` flag, so the same ticket reappeared on the
+  /// next stream emission and again on every app restart. The decline is now
+  /// recorded at `tickets/{id}/candidates/{providerId}` with status
+  /// [CandidateStatus.rejected], and [declinedTicketIds] filters those out of
+  /// the provider's feed for good.
   Future<void> declineOpportunity({
     required String ticketId,
     required String providerId,
-  }) async {}
+  }) async {
+    final now = DateTime.now();
+    final decline = CandidateLease(
+      ticketId: ticketId,
+      providerId: providerId,
+      displayName: '',
+      category: ServiceCategory.unknown,
+      distanceKm: 0,
+      etaMinutes: 0,
+      ratingAverage: 0,
+      completedJobs: 0,
+      verified: false,
+      leasedAt: now,
+      expiresAt: now,
+      status: CandidateStatus.rejected,
+    );
+    await _persistCandidate(decline);
+    _declinedByProvider.putIfAbsent(providerId, () => <String>{}).add(ticketId);
+  }
+
+  /// Tickets [providerId] has already declined, so the broadcast feed can
+  /// exclude them. Firestore has no "not in this collection group" query, so
+  /// the set is read once per session and kept current locally.
+  final Map<String, Set<String>> _declinedByProvider = {};
+
+  Set<String> declinedTicketIds(String providerId) =>
+      _declinedByProvider[providerId] ?? const {};
+
+  /// Loads this provider's past declines. Called when the provider goes
+  /// online so a restart does not resurface everything they already refused.
+  Future<void> loadDeclines(String providerId) async {
+    if (!_live) return;
+    try {
+      final snap = await FirebaseService.instance.firestore
+          .collectionGroup('candidates')
+          .where('providerId', isEqualTo: providerId)
+          .where('status', isEqualTo: CandidateStatus.rejected.name)
+          .get();
+      _declinedByProvider[providerId] = snap.docs
+          .map((d) => d.data()['ticketId'] as String? ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
+    } catch (error) {
+      debugPrint('[MatchingService] Could not load declines: $error');
+    }
+  }
 
   /// Customer confirms → provider is officially assigned, exact location is
   /// revealed to them, every other candidate is marked not selected, and a
   /// Service Job Lifecycle (Module 7) record is created.
-  Future<void> confirmProvider({
+  ///
+  /// Returns the created [Job] so the caller can navigate straight to it.
+  /// This used to return nothing, leaving the review screen to push
+  /// `jobTracking` with no arguments and hope the destination could find the
+  /// job by scanning every job held in memory.
+  ///
+  /// The candidate updates run as a single [WriteBatch]. Previously each of
+  /// the four writes went out independently, so an app killed midway left a
+  /// ticket marked `assigned` with no job attached, or half the losing
+  /// candidates still showing as pending.
+  Future<Job> confirmProvider({
     required String ticketId,
     required String providerId,
     String? providerName,
@@ -114,6 +183,16 @@ class MatchingService {
     ServiceCategory? category,
   }) async {
     final ticket = await TicketService.instance.watchTicket(ticketId).first;
+
+    // Guards a double-tap and a genuine race between two devices: whoever
+    // gets here second finds the ticket already spoken for.
+    if (ticket.assignedProviderId != null &&
+        ticket.assignedProviderId != providerId) {
+      throw MatchingConflictException(
+        'This request has already been assigned to another provider.',
+      );
+    }
+
     final customer = await AuthService.instance.currentUser();
 
     await TicketService.instance.assignProvider(
@@ -123,21 +202,97 @@ class MatchingService {
     );
 
     final candidates = await watchCandidates(ticketId).first;
-    for (final candidate in candidates) {
-      final status = candidate.providerId == providerId
-          ? CandidateStatus.selected
-          : CandidateStatus.notSelected;
-      await _updateCandidateStatus(ticketId, candidate.providerId, status);
-    }
+    await _settleCandidates(ticketId, candidates, winnerId: providerId);
 
-    await JobService.instance.createJob(
+    // Carry both contact numbers onto the job. Neither party can read the
+    // other's user document, so this is the only point at which they can be
+    // paired — the provider supplied theirs on the lease, the customer
+    // supplies their own here.
+    final winner = candidates
+        .where((c) => c.providerId == providerId)
+        .firstOrNull;
+
+    return JobService.instance.createJob(
       ticketId: ticketId,
       providerId: providerId,
       providerName: providerName ?? 'Provider',
       customerId: customer?.id ?? ticket.customerId,
       customerName: customerName ?? ticket.customerName,
+      customerPhone: customer?.phone,
+      providerPhone: winner?.phone,
       category: category ?? ticket.category,
     );
+  }
+
+  /// Marks the winner selected and everyone else not-selected in one atomic
+  /// write, rather than a sequential loop of individual updates.
+  Future<void> _settleCandidates(
+    String ticketId,
+    List<CandidateLease> candidates, {
+    required String winnerId,
+  }) async {
+    CandidateStatus statusFor(CandidateLease c) => c.providerId == winnerId
+        ? CandidateStatus.selected
+        : CandidateStatus.notSelected;
+
+    if (!_live) {
+      for (final candidate in candidates) {
+        final existing = _candidates[ticketId]?[candidate.providerId];
+        if (existing != null) {
+          _candidates[ticketId]![candidate.providerId] = existing.copyWith(
+            status: statusFor(candidate),
+          );
+        }
+      }
+      _changes.add(ticketId);
+      return;
+    }
+
+    final batch = FirebaseService.instance.firestore.batch();
+    for (final candidate in candidates) {
+      batch.update(_candidatesCol(ticketId).doc(candidate.providerId), {
+        'status': statusFor(candidate).name,
+      });
+    }
+    await batch.commit();
+  }
+
+  /// Expires every still-pending candidate on [ticketId] in one write and
+  /// returns the ticket to matching.
+  ///
+  /// The caller previously looped [rejectCandidate], and each iteration
+  /// re-read the whole candidate list to decide whether any were still
+  /// pending — O(n²) reads to expire n candidates, with the ticket status
+  /// flapping on every pass.
+  Future<void> expireAllPending(String ticketId) async {
+    final candidates = await watchCandidates(ticketId).first;
+    final pending = candidates
+        .where((c) => c.status == CandidateStatus.pending)
+        .toList();
+
+    if (pending.isNotEmpty) {
+      if (_live) {
+        final batch = FirebaseService.instance.firestore.batch();
+        for (final candidate in pending) {
+          batch.update(_candidatesCol(ticketId).doc(candidate.providerId), {
+            'status': CandidateStatus.expired.name,
+          });
+        }
+        await batch.commit();
+      } else {
+        for (final candidate in pending) {
+          final existing = _candidates[ticketId]?[candidate.providerId];
+          if (existing != null) {
+            _candidates[ticketId]![candidate.providerId] = existing.copyWith(
+              status: CandidateStatus.expired,
+            );
+          }
+        }
+        _changes.add(ticketId);
+      }
+    }
+
+    await TicketService.instance.updateStatus(ticketId, TicketStatus.matching);
   }
 
   /// Marks a single candidate rejected/expired. If no candidate is left
@@ -166,8 +321,9 @@ class MatchingService {
   Stream<List<CandidateLease>> watchCandidates(String ticketId) {
     if (_live) {
       return _candidatesCol(ticketId).snapshots().map(
-        (snap) => snap.docs.map((d) => CandidateLease.fromMap(d.data())).toList()
-          ..sort((a, b) => a.leasedAt.compareTo(b.leasedAt)),
+        (snap) =>
+            snap.docs.map((d) => CandidateLease.fromMap(d.data())).toList()
+              ..sort((a, b) => a.leasedAt.compareTo(b.leasedAt)),
       );
     }
 
@@ -182,7 +338,9 @@ class MatchingService {
     controller = StreamController<List<CandidateLease>>(
       onListen: () {
         emit();
-        sub = _changes.stream.where((id) => id == ticketId).listen((_) => emit());
+        sub = _changes.stream
+            .where((id) => id == ticketId)
+            .listen((_) => emit());
       },
       onCancel: () => sub?.cancel(),
     );
@@ -191,20 +349,9 @@ class MatchingService {
 
   Future<void> _persistCandidate(CandidateLease lease) async {
     if (_live) {
-      try {
-        await _candidatesCol(
-          lease.ticketId,
-        ).doc(lease.providerId).set(lease.toMap());
-      } on FirebaseException catch (e) {
-        if (kDebugMode && e.code == 'permission-denied') {
-          debugPrint(
-            '[MatchingService] Firestore denied candidate write; '
-            'continuing in local cache only.',
-          );
-          return;
-        }
-        rethrow;
-      }
+      await _candidatesCol(
+        lease.ticketId,
+      ).doc(lease.providerId).set(lease.toMap());
     } else {
       final forTicket = _candidates.putIfAbsent(lease.ticketId, () => {});
       forTicket[lease.providerId] = lease;
@@ -218,19 +365,9 @@ class MatchingService {
     CandidateStatus status,
   ) async {
     if (_live) {
-      try {
-        await _candidatesCol(
-          ticketId,
-        ).doc(providerId).update({'status': status.name});
-      } on FirebaseException catch (e) {
-        if (kDebugMode && e.code == 'permission-denied') {
-          debugPrint(
-            '[MatchingService] Firestore denied candidate status update.',
-          );
-          return;
-        }
-        rethrow;
-      }
+      await _candidatesCol(
+        ticketId,
+      ).doc(providerId).update({'status': status.name});
     } else {
       final existing = _candidates[ticketId]?[providerId];
       if (existing != null) {
