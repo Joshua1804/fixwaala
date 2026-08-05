@@ -118,6 +118,28 @@ class TicketService {
     }
   }
 
+  /// A single read of the redacted broadcast projection — what an
+  /// unassigned provider is allowed to see, per [Ticket.toBroadcastMap] and
+  /// the `openTickets` rule. Use this (not [watchTicket]) for any read that
+  /// happens before a provider is the ticket's `assignedProviderId` — the
+  /// private `tickets/{id}` document carries `exactLocation`, which the
+  /// security rules refuse to hand to anyone else.
+  Future<Ticket> getOpenTicket(String ticketId) async {
+    if (_live) {
+      final snap = await _openCol.doc(ticketId).get();
+      if (!snap.exists) {
+        throw StateError('Ticket $ticketId no longer exists.');
+      }
+      return Ticket.fromMap(snap.data()!);
+    } else {
+      final ticket = _memStore[ticketId];
+      if (ticket == null) {
+        throw StateError('Ticket $ticketId no longer exists.');
+      }
+      return ticket;
+    }
+  }
+
   // ── Read: customer's tickets ───────────────────────────────────
 
   /// Returns ALL tickets for [customerId], newest first.
@@ -279,6 +301,15 @@ class TicketService {
   /// Opens the customer's candidate-review window: flips to
   /// [TicketStatus.awaitingCustomerConfirmation] and starts the shared
   /// countdown. Called once, when a ticket's first candidate accepts.
+  ///
+  /// Deliberately does not call [_syncBroadcast]: that call is made by an
+  /// as-yet-unassigned provider, who has no permission to read the private
+  /// ticket _syncBroadcast needs, and would otherwise delete the
+  /// `openTickets` projection — cutting off the other candidates a second
+  /// (or third) provider is still allowed to register during this window.
+  /// The projection is only ever taken down once the ticket is genuinely
+  /// resolved (assigned, failed, or cancelled), all of which are customer-
+  /// driven paths that already call [_syncBroadcast] themselves.
   Future<void> openCandidateWindow(String ticketId, DateTime expiresAt) async {
     if (_live) {
       await _col.doc(ticketId).update({
@@ -286,7 +317,6 @@ class TicketService {
         'candidateWindowExpiresAt': Timestamp.fromDate(expiresAt),
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
-      await _syncBroadcast(ticketId);
     } else {
       final existing = _memStore[ticketId];
       if (existing != null) {

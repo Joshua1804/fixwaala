@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
 import '../core/services/firebase_service.dart';
+import '../core/theme/app_colors.dart';
 import 'admin_app.dart';
+import 'core/admin_theme.dart';
 
 /// Entry point for the admin website — a separate compilation unit from the
 /// mobile app's `lib/main.dart`. Run it with:
@@ -38,6 +40,8 @@ class _AdminBootFailureApp extends StatelessWidget {
     return MaterialApp(
       title: 'Fixwaala Admin',
       debugShowCheckedModeBanner: false,
+      theme: AdminTheme.light,
+      themeMode: ThemeMode.light,
       home: Scaffold(
         body: Center(
           child: Padding(
@@ -45,7 +49,11 @@ class _AdminBootFailureApp extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 40,
+                  color: AppColors.error,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Firebase failed to initialize',

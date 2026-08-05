@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'package:flutter/material.dart';
 
 import '../../../core/models/enums.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatting.dart';
 import '../../../core/widgets/service_category_ui.dart';
 import '../../../features/service_lifecycle/widgets/job_status_ui.dart';
@@ -129,7 +130,9 @@ class _AdminJobListScreenState extends State<AdminJobListScreen> {
                                   ? Icons.check_circle_rounded
                                   : Icons.radio_button_unchecked_rounded,
                               size: 18,
-                              color: job.paid ? Colors.green : Colors.grey,
+                              color: job.paid
+                                  ? AppColors.success
+                                  : AppColors.textHint,
                             ),
                           ),
                           DataCell(Text(RelativeTime.format(job.createdAt))),

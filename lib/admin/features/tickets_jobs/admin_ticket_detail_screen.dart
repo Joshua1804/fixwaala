@@ -55,15 +55,24 @@ class _AdminTicketDetailScreenState extends State<AdminTicketDetailScreen> {
     );
     if (reason == null) return;
     setState(() => _busy = true);
-    await AdminTicketJobService.instance.forceCancelTicket(
-      ticket,
-      reason: reason,
-    );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _load();
-    });
+    try {
+      await AdminTicketJobService.instance.forceCancelTicket(
+        ticket,
+        reason: reason,
+      );
+      if (mounted) setState(_load);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Something went wrong: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -102,7 +111,8 @@ class _AdminTicketDetailScreenState extends State<AdminTicketDetailScreen> {
         final isTerminal = !ticket.isActive;
         return AdminPageScaffold(
           title: 'Ticket ${ticket.id}',
-          subtitle: '${ServiceCategoryUi.label(ticket.category)} · '
+          subtitle:
+              '${ServiceCategoryUi.label(ticket.category)} · '
               '${ticket.customerName.isNotEmpty ? ticket.customerName : ticket.customerFirstName}',
           actions: [
             if (_busy)
@@ -223,7 +233,10 @@ class _AdminTicketDetailScreenState extends State<AdminTicketDetailScreen> {
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
-                                Text(qa.answer, style: AppTextStyles.bodyMedium),
+                                Text(
+                                  qa.answer,
+                                  style: AppTextStyles.bodyMedium,
+                                ),
                               ],
                             ),
                           ),
@@ -292,7 +305,8 @@ class _AdminTicketDetailScreenState extends State<AdminTicketDetailScreen> {
     );
   }
 
-  Widget _row(String label, String value) => _DetailRow(label: label, value: value);
+  Widget _row(String label, String value) =>
+      _DetailRow(label: label, value: value);
 }
 
 class _Section extends StatelessWidget {

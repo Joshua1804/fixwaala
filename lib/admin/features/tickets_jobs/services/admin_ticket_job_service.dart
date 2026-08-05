@@ -10,14 +10,22 @@ class TicketPage {
   final List<Ticket> tickets;
   final fs.DocumentSnapshot<Map<String, dynamic>>? lastDoc;
   final bool hasMore;
-  const TicketPage({required this.tickets, required this.lastDoc, required this.hasMore});
+  const TicketPage({
+    required this.tickets,
+    required this.lastDoc,
+    required this.hasMore,
+  });
 }
 
 class JobPage {
   final List<Job> jobs;
   final fs.DocumentSnapshot<Map<String, dynamic>>? lastDoc;
   final bool hasMore;
-  const JobPage({required this.jobs, required this.lastDoc, required this.hasMore});
+  const JobPage({
+    required this.jobs,
+    required this.lastDoc,
+    required this.hasMore,
+  });
 }
 
 /// Cross-user oversight of the marketplace's two core records. Reads and
@@ -79,7 +87,10 @@ class AdminTicketJobService {
   /// `TicketService._syncBroadcast` does for a normal status change: the
   /// redacted `openTickets` projection is removed in the same batch, so no
   /// provider keeps seeing a request an admin has just killed.
-  Future<void> forceCancelTicket(Ticket ticket, {required String reason}) async {
+  Future<void> forceCancelTicket(
+    Ticket ticket, {
+    required String reason,
+  }) async {
     final batch = FirebaseService.instance.firestore.batch();
     batch.update(_ticketsCol.doc(ticket.id), {
       'status': TicketStatus.cancelled.name,

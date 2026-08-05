@@ -32,7 +32,8 @@ class _AdminJobDetailScreenState extends State<AdminJobDetailScreen> {
     _load();
   }
 
-  void _load() => _future = AdminTicketJobService.instance.fetchJob(widget.jobId);
+  void _load() =>
+      _future = AdminTicketJobService.instance.fetchJob(widget.jobId);
 
   Future<void> _forceCancel(Job job) async {
     final reason = await showAdminReasonDialog(
@@ -42,12 +43,21 @@ class _AdminJobDetailScreenState extends State<AdminJobDetailScreen> {
     );
     if (reason == null) return;
     setState(() => _busy = true);
-    await AdminTicketJobService.instance.forceCancelJob(job, reason: reason);
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _load();
-    });
+    try {
+      await AdminTicketJobService.instance.forceCancelJob(job, reason: reason);
+      if (mounted) setState(_load);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Something went wrong: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -150,7 +160,10 @@ class _AdminJobDetailScreenState extends State<AdminJobDetailScreen> {
                       rows: [
                         _row('Name', job.customerName),
                         _row('Phone', job.customerPhone ?? '—'),
-                        _row('Rated provider', job.customerRated ? 'Yes' : 'No'),
+                        _row(
+                          'Rated provider',
+                          job.customerRated ? 'Yes' : 'No',
+                        ),
                       ],
                       onTap: () => Navigator.of(context).pushNamed(
                         AdminRouteNames.userDetail,
@@ -165,7 +178,10 @@ class _AdminJobDetailScreenState extends State<AdminJobDetailScreen> {
                       rows: [
                         _row('Name', job.providerName),
                         _row('Phone', job.providerPhone ?? '—'),
-                        _row('Rated customer', job.providerRated ? 'Yes' : 'No'),
+                        _row(
+                          'Rated customer',
+                          job.providerRated ? 'Yes' : 'No',
+                        ),
                       ],
                       onTap: () => Navigator.of(context).pushNamed(
                         AdminRouteNames.userDetail,
@@ -200,8 +216,14 @@ class _AdminJobDetailScreenState extends State<AdminJobDetailScreen> {
                   title: 'Estimate',
                   rows: [
                     _row('Diagnosis', job.estimate!.diagnosis),
-                    _row('Labor', '₹${job.estimate!.laborCharge.toStringAsFixed(0)}'),
-                    _row('Parts', '₹${job.estimate!.partsCharge.toStringAsFixed(0)}'),
+                    _row(
+                      'Labor',
+                      '₹${job.estimate!.laborCharge.toStringAsFixed(0)}',
+                    ),
+                    _row(
+                      'Parts',
+                      '₹${job.estimate!.partsCharge.toStringAsFixed(0)}',
+                    ),
                     _row('Total', '₹${job.estimate!.total.toStringAsFixed(0)}'),
                     if (job.estimate!.notes.isNotEmpty)
                       _row('Notes', job.estimate!.notes),
@@ -217,7 +239,8 @@ class _AdminJobDetailScreenState extends State<AdminJobDetailScreen> {
     );
   }
 
-  Widget _row(String label, String value) => _DetailRow(label: label, value: value);
+  Widget _row(String label, String value) =>
+      _DetailRow(label: label, value: value);
 }
 
 class _Section extends StatelessWidget {
@@ -242,7 +265,11 @@ class _Section extends StatelessWidget {
             children: [
               Expanded(child: Text(title, style: AppTextStyles.titleMedium)),
               if (onTap != null)
-                const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textHint),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: AppColors.textHint,
+                ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),

@@ -92,6 +92,8 @@ class AdminAuditService {
     return query
         .limit(limit)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => AuditEvent.fromMap(d.data())).toList());
+        .map(
+          (snap) => snap.docs.map((d) => AuditEvent.fromMap(d.data())).toList(),
+        );
   }
 }

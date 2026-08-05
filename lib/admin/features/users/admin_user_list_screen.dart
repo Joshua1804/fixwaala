@@ -107,7 +107,8 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
                 label: 'Role',
                 value: _role,
                 options: UserRole.values,
-                labelBuilder: (r) => r == UserRole.customer ? 'Customer' : 'Provider',
+                labelBuilder: (r) =>
+                    r == UserRole.customer ? 'Customer' : 'Provider',
                 onChanged: (v) {
                   setState(() {
                     _role = v;
@@ -131,10 +132,7 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          if (isSearching)
-            _buildSearchResults()
-          else
-            _buildBrowseTable(),
+          if (isSearching) _buildSearchResults() else _buildBrowseTable(),
         ],
       ),
     );
@@ -174,7 +172,10 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
           return const AdminLoadingView();
         }
         if (snapshot.hasError) {
-          return AdminErrorView(error: snapshot.error!, onRetry: _resetAndReload);
+          return AdminErrorView(
+            error: snapshot.error!,
+            onRetry: _resetAndReload,
+          );
         }
         final page = snapshot.data!;
         if (page.users.isEmpty && _pageIndex == 0) {
@@ -221,10 +222,9 @@ class _UserTable extends StatelessWidget {
       ],
       rows: users.map((user) {
         return DataRow(
-          onSelectChanged: (_) => Navigator.of(context).pushNamed(
-            AdminRouteNames.userDetail,
-            arguments: user.id,
-          ),
+          onSelectChanged: (_) => Navigator.of(
+            context,
+          ).pushNamed(AdminRouteNames.userDetail, arguments: user.id),
           cells: [
             DataCell(
               Row(
@@ -279,12 +279,18 @@ class _UserTable extends StatelessWidget {
 
   Widget _statusChip(AccountStatus status) {
     return switch (status) {
-      AccountStatus.active =>
-        AdminStatusChip.semantic('Active', tone: AdminTone.good),
-      AccountStatus.restricted =>
-        AdminStatusChip.semantic('Restricted', tone: AdminTone.warning),
-      AccountStatus.suspended =>
-        AdminStatusChip.semantic('Suspended', tone: AdminTone.bad),
+      AccountStatus.active => AdminStatusChip.semantic(
+        'Active',
+        tone: AdminTone.good,
+      ),
+      AccountStatus.restricted => AdminStatusChip.semantic(
+        'Restricted',
+        tone: AdminTone.warning,
+      ),
+      AccountStatus.suspended => AdminStatusChip.semantic(
+        'Suspended',
+        tone: AdminTone.bad,
+      ),
     };
   }
 }

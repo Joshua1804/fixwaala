@@ -27,7 +27,14 @@ class AdminTableCard extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
               constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: DataTable(columns: columns, rows: rows),
+              // Rows use onSelectChanged purely for whole-row tap-to-navigate;
+              // this hides the selection checkbox Flutter adds for that,
+              // which had no real selection behind it and just ate the tap.
+              child: DataTable(
+                columns: columns,
+                rows: rows,
+                showCheckboxColumn: false,
+              ),
             ),
           );
         },

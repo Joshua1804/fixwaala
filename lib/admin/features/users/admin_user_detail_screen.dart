@@ -68,16 +68,18 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     );
     if (result != true) return;
     setState(() => _busy = true);
-    await AdminUserService.instance.updateProfile(
-      user,
-      name: nameController.text.trim(),
-      phone: phoneController.text.trim(),
-    );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _load();
-    });
+    try {
+      await AdminUserService.instance.updateProfile(
+        user,
+        name: nameController.text.trim(),
+        phone: phoneController.text.trim(),
+      );
+      if (mounted) setState(_load);
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _changeStatus(AppUser user, AccountStatus status) async {
@@ -90,16 +92,18 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     );
     if (reason == null) return;
     setState(() => _busy = true);
-    await AdminUserService.instance.setAccountStatus(
-      user,
-      status,
-      reason: reason,
-    );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _load();
-    });
+    try {
+      await AdminUserService.instance.setAccountStatus(
+        user,
+        status,
+        reason: reason,
+      );
+      if (mounted) setState(_load);
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _toggleVerified(AppUser user) async {
@@ -116,12 +120,14 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     );
     if (!confirmed) return;
     setState(() => _busy = true);
-    await AdminUserService.instance.setVerified(user, next);
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _load();
-    });
+    try {
+      await AdminUserService.instance.setVerified(user, next);
+      if (mounted) setState(_load);
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _delete(AppUser user) async {
@@ -139,9 +145,23 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     );
     if (!confirmed) return;
     setState(() => _busy = true);
-    await AdminUserService.instance.deleteProfile(user);
+    try {
+      await AdminUserService.instance.deleteProfile(user);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      _showError(e);
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _showError(Object error) {
     if (!mounted) return;
-    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Something went wrong: $error'),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
 
   @override
@@ -268,14 +288,18 @@ class _UserDetailBody extends StatelessWidget {
                   : AdminTone.good,
             ),
             switch (user.accountStatus) {
-              AccountStatus.active =>
-                AdminStatusChip.semantic('Active', tone: AdminTone.good),
+              AccountStatus.active => AdminStatusChip.semantic(
+                'Active',
+                tone: AdminTone.good,
+              ),
               AccountStatus.restricted => AdminStatusChip.semantic(
                 'Restricted',
                 tone: AdminTone.warning,
               ),
-              AccountStatus.suspended =>
-                AdminStatusChip.semantic('Suspended', tone: AdminTone.bad),
+              AccountStatus.suspended => AdminStatusChip.semantic(
+                'Suspended',
+                tone: AdminTone.bad,
+              ),
             },
             if (user.role == UserRole.provider)
               AdminStatusChip.semantic(
@@ -345,7 +369,8 @@ class _UserDetailBody extends StatelessWidget {
     );
   }
 
-  Widget _row(String label, String value) => _DetailRow(label: label, value: value);
+  Widget _row(String label, String value) =>
+      _DetailRow(label: label, value: value);
 }
 
 class _Section extends StatelessWidget {

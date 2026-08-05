@@ -7,6 +7,7 @@ class AdminFilterDropdown<T> extends StatelessWidget {
   final T? value;
   final List<T> options;
   final String Function(T) labelBuilder;
+
   /// Null disables the dropdown entirely — used when a filter only makes
   /// sense in combination with another one that hasn't been picked yet.
   final ValueChanged<T?>? onChanged;

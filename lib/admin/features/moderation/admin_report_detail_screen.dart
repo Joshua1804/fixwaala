@@ -54,7 +54,8 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(noteController.text.trim()),
+            onPressed: () =>
+                Navigator.of(context).pop(noteController.text.trim()),
             child: const Text('Save'),
           ),
         ],
@@ -62,17 +63,26 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
     );
     if (note == null) return;
     setState(() => _busy = true);
-    await AdminModerationService.instance.resolveReport(
-      report,
-      status: status,
-      adminNote: note,
-      adminId: AdminAuthService.instance.currentUid ?? 'unknown',
-    );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _load();
-    });
+    try {
+      await AdminModerationService.instance.resolveReport(
+        report,
+        status: status,
+        adminNote: note,
+        adminId: AdminAuthService.instance.currentUid ?? 'unknown',
+      );
+      if (mounted) setState(_load);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Something went wrong: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -199,7 +209,8 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               _Section(
                 title: 'Resolution',
                 rows: [
-                  if (report.adminNote != null) _row('Admin note', report.adminNote!),
+                  if (report.adminNote != null)
+                    _row('Admin note', report.adminNote!),
                   if (report.resolvedByAdminId != null)
                     _row('Resolved by', report.resolvedByAdminId!),
                   const SizedBox(height: AppSpacing.md),
@@ -210,7 +221,10 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                         OutlinedButton(
                           onPressed: _busy
                               ? null
-                              : () => _setStatus(report, ReportStatus.underReview),
+                              : () => _setStatus(
+                                  report,
+                                  ReportStatus.underReview,
+                                ),
                           child: const Text('Mark under review'),
                         ),
                       if (report.status != ReportStatus.resolved)
@@ -225,7 +239,9 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.textSecondary,
                             side: BorderSide(
-                              color: AppColors.textSecondary.withValues(alpha: 0.4),
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.4,
+                              ),
                             ),
                           ),
                           onPressed: _busy
@@ -244,7 +260,8 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
     );
   }
 
-  Widget _row(String label, String value) => _DetailRow(label: label, value: value);
+  Widget _row(String label, String value) =>
+      _DetailRow(label: label, value: value);
 }
 
 class _Section extends StatelessWidget {

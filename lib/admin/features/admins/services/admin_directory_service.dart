@@ -40,10 +40,11 @@ class AdminDirectoryService {
         .collection('admins')
         .snapshots()
         .map(
-          (snap) => snap.docs
-              .map((d) => AdminDirectoryEntry.fromMap(d.id, d.data()))
-              .toList()
-            ..sort((a, b) => a.email.compareTo(b.email)),
+          (snap) =>
+              snap.docs
+                  .map((d) => AdminDirectoryEntry.fromMap(d.id, d.data()))
+                  .toList()
+                ..sort((a, b) => a.email.compareTo(b.email)),
         );
   }
 }

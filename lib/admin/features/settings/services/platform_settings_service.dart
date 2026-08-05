@@ -10,8 +10,11 @@ class PlatformSettingsService {
   PlatformSettingsService._();
   static final PlatformSettingsService instance = PlatformSettingsService._();
 
-  fs.DocumentReference<Map<String, dynamic>> get _doc =>
-      FirebaseService.instance.firestore.collection('platformSettings').doc('config');
+  fs.DocumentReference<Map<String, dynamic>> get _doc => FirebaseService
+      .instance
+      .firestore
+      .collection('platformSettings')
+      .doc('config');
 
   Future<PlatformSettings> fetch() async {
     final snap = await _doc.get();
@@ -19,7 +22,10 @@ class PlatformSettingsService {
     return PlatformSettings.fromMap(snap.data()!);
   }
 
-  Future<void> save(PlatformSettings settings, {required String adminId}) async {
+  Future<void> save(
+    PlatformSettings settings, {
+    required String adminId,
+  }) async {
     final updated = settings.copyWith(updatedByAdminId: adminId);
     await _doc.set(updated.toMap());
     await AdminAuditService.instance.log(

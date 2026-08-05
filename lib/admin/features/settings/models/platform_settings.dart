@@ -49,11 +49,14 @@ class PlatformSettings {
       maintenanceMessage: map['maintenanceMessage'] as String? ?? '',
       supportEmail: map['supportEmail'] as String? ?? '',
       supportPhone: map['supportPhone'] as String? ?? '',
-      searchRadiiKm: (map['searchRadiiKm'] as List<dynamic>? ?? const [5, 10, 15])
-          .map((v) => (v as num).toDouble())
-          .toList(),
-      candidateReviewSeconds: (map['candidateReviewSeconds'] as num?)?.toInt() ?? 180,
-      minSupportedAppVersion: map['minSupportedAppVersion'] as String? ?? '1.0.0',
+      searchRadiiKm:
+          (map['searchRadiiKm'] as List<dynamic>? ?? const [5, 10, 15])
+              .map((v) => (v as num).toDouble())
+              .toList(),
+      candidateReviewSeconds:
+          (map['candidateReviewSeconds'] as num?)?.toInt() ?? 180,
+      minSupportedAppVersion:
+          map['minSupportedAppVersion'] as String? ?? '1.0.0',
       updatedAt: updatedAt is fs.Timestamp ? updatedAt.toDate() : null,
       updatedByAdminId: map['updatedByAdminId'] as String?,
     );
@@ -75,8 +78,10 @@ class PlatformSettings {
       supportEmail: supportEmail ?? this.supportEmail,
       supportPhone: supportPhone ?? this.supportPhone,
       searchRadiiKm: searchRadiiKm ?? this.searchRadiiKm,
-      candidateReviewSeconds: candidateReviewSeconds ?? this.candidateReviewSeconds,
-      minSupportedAppVersion: minSupportedAppVersion ?? this.minSupportedAppVersion,
+      candidateReviewSeconds:
+          candidateReviewSeconds ?? this.candidateReviewSeconds,
+      minSupportedAppVersion:
+          minSupportedAppVersion ?? this.minSupportedAppVersion,
       updatedByAdminId: updatedByAdminId ?? this.updatedByAdminId,
     );
   }

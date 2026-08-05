@@ -66,7 +66,9 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
           const SizedBox(height: 4),
           Text(
             'Document counts, to sanity-check that data is actually flowing.',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           FutureBuilder<List<CollectionHealth>>(
@@ -81,7 +83,10 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
               final items = snapshot.data!;
               return LayoutBuilder(
                 builder: (context, constraints) {
-                  final columns = (constraints.maxWidth / 200).floor().clamp(1, 6);
+                  final columns = (constraints.maxWidth / 200).floor().clamp(
+                    1,
+                    6,
+                  );
                   return GridView.count(
                     crossAxisCount: columns,
                     shrinkWrap: true,
@@ -103,7 +108,10 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('${c.count}', style: AppTextStyles.headlineSmall),
+                            Text(
+                              '${c.count}',
+                              style: AppTextStyles.headlineSmall,
+                            ),
                             Text(
                               c.name,
                               style: AppTextStyles.bodySmall.copyWith(
@@ -129,7 +137,11 @@ class _BackendRow extends StatelessWidget {
   final String label;
   final bool deployed;
   final String note;
-  const _BackendRow({required this.label, required this.deployed, required this.note});
+  const _BackendRow({
+    required this.label,
+    required this.deployed,
+    required this.note,
+  });
 
   @override
   Widget build(BuildContext context) {

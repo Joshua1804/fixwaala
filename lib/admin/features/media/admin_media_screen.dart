@@ -65,16 +65,19 @@ class _AdminMediaScreenState extends State<AdminMediaScreen> {
             );
           }
           final page = snapshot.data!;
-          final withPhotos = page.tickets.where((t) => t.imageUrls.isNotEmpty).toList();
+          final withPhotos = page.tickets
+              .where((t) => t.imageUrls.isNotEmpty)
+              .toList();
           if (withPhotos.isEmpty) {
             return Column(
               children: [
                 const AdminEmptyView(
                   title: 'No photos on this page',
-                  message: 'These tickets in this range had no photos attached.',
+                  message:
+                      'These tickets in this range had no photos attached.',
                   icon: Icons.photo_library_outlined,
                 ),
-                _pager(page),
+                _pager(page, withPhotos.length),
               ],
             );
           }
@@ -82,7 +85,7 @@ class _AdminMediaScreenState extends State<AdminMediaScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ...withPhotos.map((ticket) => _TicketPhotoRow(ticket: ticket)),
-              _pager(page),
+              _pager(page, withPhotos.length),
             ],
           );
         },
@@ -90,11 +93,14 @@ class _AdminMediaScreenState extends State<AdminMediaScreen> {
     );
   }
 
-  Widget _pager(TicketPage page) {
+  // `currentCount` reflects the photo rows actually rendered, not the raw
+  // ticket-page size — tickets without photos are filtered out above, so
+  // showing `page.tickets.length` would claim more rows than are on screen.
+  Widget _pager(TicketPage page, int currentCount) {
     return AdminPaginationBar(
       pageNumber: _pageIndex + 1,
       pageSize: 40,
-      currentCount: page.tickets.length,
+      currentCount: currentCount,
       hasPrevious: _pageIndex > 0,
       hasNext: page.hasMore,
       isLoading: false,
@@ -144,14 +150,15 @@ class _TicketPhotoRow extends StatelessWidget {
               ),
               Text(
                 RelativeTime.format(ticket.createdAt),
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
               TextButton(
-                onPressed: () => Navigator.of(context).pushNamed(
-                  AdminRouteNames.ticketDetail,
-                  arguments: ticket.id,
-                ),
+                onPressed: () => Navigator.of(
+                  context,
+                ).pushNamed(AdminRouteNames.ticketDetail, arguments: ticket.id),
                 child: const Text('Open ticket'),
               ),
             ],
