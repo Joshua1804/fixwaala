@@ -15,8 +15,15 @@ class AppConstants {
   static const int candidateReviewWarningSeconds = 30;
 
   // Geo-broadcast (Module 5)
-  static const List<double> searchRadiiKm = [5, 10, 15];
-  static const int broadcastTimeoutSeconds = 120;
+  //
+  // The customer's "Available Providers" view starts tight — 2 km — so the
+  // first providers shown are genuinely nearby, then widens automatically
+  // once a minute if nobody has accepted yet. `initialSearchRadiusKm` is
+  // split out from the tier list because `Ticket`'s const constructor needs
+  // a single constant default for `broadcastRadiusKm`, not a list lookup.
+  static const double initialSearchRadiusKm = 2;
+  static const List<double> searchRadiiKm = [initialSearchRadiusKm, 5, 10, 15];
+  static const int broadcastTimeoutSeconds = 60;
 
   // Location freshness threshold (seconds) for eligible providers
   static const int locationFreshnessSeconds = 120;

@@ -131,6 +131,19 @@ service cloud.firestore {
         (request.auth.uid == existing().assignedProviderId &&
          unchanged('customerId') &&
          unchanged('assignedProviderId')) ||
+        // TicketService.openCandidateWindow: the provider accepting a
+        // ticket's *first* candidate flips it matching ->
+        // awaitingCustomerConfirmation and starts the shared countdown —
+        // before the customer has confirmed anyone, so they are neither
+        // the customer nor (yet) the assigned provider. Scoped tightly:
+        // only that one transition, only the three fields it touches, and
+        // only for a provider who has actually just leased a candidate
+        // slot on this ticket (not an arbitrary signed-in account).
+        (existing().status == 'matching' &&
+         incoming().status == 'awaitingCustomerConfirmation' &&
+         incoming().diff(existing()).affectedKeys()
+           .hasOnly(['status', 'candidateWindowExpiresAt', 'updatedAt']) &&
+         exists(/databases/$(database)/documents/tickets/$(ticketId)/candidates/$(request.auth.uid))) ||
         isAdmin()
       );
 
@@ -200,8 +213,16 @@ service cloud.firestore {
         !('customerName' in incoming()) &&
         !('phone' in incoming());
 
-      allow delete: if isSignedIn() &&
-        request.auth.uid == existing().customerId || isAdmin();
+      // Removed the moment a ticket leaves `matching` (see
+      // TicketService._syncBroadcast). That call runs under the customer's
+      // auth for every other transition, but for the very first candidate
+      // it runs under the *accepting provider's* auth (see the ticket
+      // update rule above) — so that provider needs delete rights here too,
+      // scoped to actually holding a candidate lease on this ticket.
+      allow delete: if isAdmin() || (isSignedIn() && (
+        request.auth.uid == existing().customerId ||
+        exists(/databases/$(database)/documents/tickets/$(ticketId)/candidates/$(request.auth.uid))
+      ));
     }
 
     // ── Jobs ───────────────────────────────────────────────────────────

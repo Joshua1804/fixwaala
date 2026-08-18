@@ -78,10 +78,10 @@ class _MatchingScreenState extends State<MatchingScreen> {
   @override
   Widget build(BuildContext context) {
     if ((_ticketId ?? '').isEmpty) {
-      return const MissingRouteArgumentScreen(title: 'Finding a provider');
+      return const MissingRouteArgumentScreen(title: 'Available Providers');
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Finding provider')),
+      appBar: AppBar(title: const Text('Available Providers')),
       body: StreamBuilder<List<CandidateLease>>(
         stream: _candidatesStream,
         builder: (context, candSnap) {
@@ -118,24 +118,29 @@ class _MatchingScreenState extends State<MatchingScreen> {
                     icon: Icons.search_off_rounded,
                     title: 'No providers found nearby',
                     subtitle:
-                        'We expanded the search up to 15 km but no one accepted in time.',
+                        'We expanded the search up to '
+                        '${AppConstants.searchRadiiKm.last.toStringAsFixed(0)} km '
+                        'but no one accepted in time.',
                     actionLabel: 'Try again',
                     onAction: _retry,
                   ),
                 );
               }
 
-              final radiusKm = ticket?.broadcastRadiusKm ?? 5;
+              final radiusKm =
+                  ticket?.broadcastRadiusKm ??
+                  AppConstants.initialSearchRadiusKm;
+              final maxRadiusKm = AppConstants.searchRadiiKm.last;
               return Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const LoadingWidget(label: 'Searching nearby providers'),
+                    const LoadingWidget(label: 'Looking for available providers'),
                     const SizedBox(height: 8),
                     Text(
-                      'Searching within ${radiusKm.toStringAsFixed(0)} km '
-                      '(expands up to 15 km)...',
+                      'Showing providers within ${radiusKm.toStringAsFixed(0)} km'
+                      '${radiusKm < maxRadiusKm ? ' — expanding automatically if no one responds' : ''}',
                       textAlign: TextAlign.center,
                     ),
                     const Spacer(),

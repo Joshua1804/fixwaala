@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/user_model.dart';
 import '../../ai_assist/models/clarifying_qa.dart';
@@ -43,7 +44,7 @@ class Ticket {
     this.clarifyingQa = const [],
     this.aiSummary,
     this.recommendedEquipment = const [],
-    this.broadcastRadiusKm = 5,
+    this.broadcastRadiusKm = AppConstants.initialSearchRadiusKm,
     this.candidateWindowExpiresAt,
   });
 
@@ -206,7 +207,9 @@ class Ticket {
       recommendedEquipment: List<String>.from(
         map['recommendedEquipment'] ?? [],
       ),
-      broadcastRadiusKm: (map['broadcastRadiusKm'] as num?)?.toDouble() ?? 5,
+      broadcastRadiusKm:
+          (map['broadcastRadiusKm'] as num?)?.toDouble() ??
+          AppConstants.initialSearchRadiusKm,
       candidateWindowExpiresAt: map['candidateWindowExpiresAt'] is fs.Timestamp
           ? (map['candidateWindowExpiresAt'] as fs.Timestamp).toDate()
           : null,

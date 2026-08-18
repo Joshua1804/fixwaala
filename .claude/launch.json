@@ -6,6 +6,12 @@
       "runtimeExecutable": "flutter",
       "runtimeArgs": ["run", "-d", "chrome", "--web-port=8080", "--web-hostname=localhost"],
       "port": 8080
+    },
+    {
+      "name": "fixwaala-admin",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-t", "lib/admin/main_admin.dart", "-d", "chrome", "--web-port=8081", "--web-hostname=localhost"],
+      "port": 8081
     }
   ]
 }

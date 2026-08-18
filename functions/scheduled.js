@@ -18,8 +18,8 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 
 // Must match AppConstants in the Flutter app.
-const SEARCH_RADII_KM = [5, 10, 15];
-const BROADCAST_TIMEOUT_SECONDS = 120;
+const SEARCH_RADII_KM = [2, 5, 10, 15];
+const BROADCAST_TIMEOUT_SECONDS = 60;
 
 const db = () => getFirestore();
 
