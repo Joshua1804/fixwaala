@@ -11,6 +11,7 @@ import '../../features/customer_ticket/screens/create_ticket_screen.dart';
 import '../../features/customer_ticket/screens/my_tickets_screen.dart';
 import '../../features/customer_ticket/screens/ticket_review_screen.dart';
 import '../../features/geo_broadcast/screens/matching_screen.dart';
+import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/payment/screens/simulated_payment_screen.dart';
 import '../../features/provider_dashboard/screens/earnings_screen.dart';
 import '../../features/provider_dashboard/screens/performance_screen.dart';
@@ -149,6 +150,10 @@ class AppRouter {
         return _page(const ReportScreen(), settings);
       case RouteNames.sos:
         return _page(const SosScreen(), settings);
+
+      // Notifications
+      case RouteNames.notifications:
+        return _page(const NotificationsScreen(), settings);
 
       default:
         return _page(

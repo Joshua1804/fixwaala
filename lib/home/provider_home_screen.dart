@@ -232,7 +232,9 @@ class _ProviderHomeTab extends StatelessWidget {
                             ),
                           ),
                           IconButton(
-                            onPressed: () {},
+                            onPressed: () => Navigator.of(
+                              context,
+                            ).pushNamed(RouteNames.notifications),
                             icon: Icon(
                               Icons.notifications_outlined,
                               color: Colors.white.withValues(alpha: 0.8),

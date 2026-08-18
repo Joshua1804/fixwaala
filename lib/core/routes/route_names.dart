@@ -63,4 +63,7 @@ class RouteNames {
   // Module 11 - Reports & safety
   static const report = '/report';
   static const sos = '/sos';
+
+  // Notifications (admin announcements)
+  static const notifications = '/notifications';
 }
