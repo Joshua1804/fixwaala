@@ -206,8 +206,8 @@ class _ProviderHomeTab extends StatelessWidget {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: FutureBuilder<AppUser?>(
-                              future: AuthService.instance.currentUser(),
+                            child: StreamBuilder<AppUser?>(
+                              stream: AuthService.instance.currentUserStream,
                               builder: (context, snapshot) {
                                 final name = snapshot.data?.name ?? 'Provider';
                                 return Column(
