@@ -127,10 +127,11 @@ class _ProfileSettingsScaffoldState extends State<ProfileSettingsScaffold>
                 fallbackName: widget.fallbackName,
                 badge: widget.badgeBuilder?.call(user),
                 tiles: widget.tilesBuilder(context, user),
-                onSave: (name, phone) async {
+                onSave: (name, phone, photoUrl) async {
                   await AuthService.instance.updateProfile(
                     name: name,
                     phone: phone,
+                    photoUrl: photoUrl,
                   );
                 },
               ),

@@ -8,6 +8,7 @@ import '../core/models/user_model.dart';
 import '../core/routes/route_names.dart';
 import '../core/services/notification_service.dart';
 import '../core/theme/app_colors.dart';
+import '../core/widgets/remote_image.dart';
 import '../core/theme/app_durations.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/motion.dart';
@@ -191,40 +192,58 @@ class _ProviderHomeTab extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(
-                              Icons.person_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
                           Expanded(
                             child: StreamBuilder<AppUser?>(
                               stream: AuthService.instance.currentUserStream,
                               builder: (context, snapshot) {
-                                final name = snapshot.data?.name ?? 'Provider';
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                final user = snapshot.data;
+                                final name = user?.name ?? 'Provider';
+                                return Row(
                                   children: [
-                                    Text(
-                                      'Hi $name! 👋',
-                                      style: AppTextStyles.headlineSmall
-                                          .copyWith(color: Colors.white),
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                        borderRadius: BorderRadius.circular(
+                                          14,
+                                        ),
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: user?.photoUrl != null
+                                          ? RemoteImage(
+                                              url: user!.photoUrl!,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : const Icon(
+                                              Icons.person_rounded,
+                                              color: Colors.white,
+                                              size: 22,
+                                            ),
                                     ),
-                                    const SizedBox(height: 2),
-                                    Row(
-                                      children: [
-                                        online
-                                            ? StatusBadge.online()
-                                            : StatusBadge.offline(),
-                                      ],
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Hi $name! 👋',
+                                            style: AppTextStyles.headlineSmall
+                                                .copyWith(color: Colors.white),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Row(
+                                            children: [
+                                              online
+                                                  ? StatusBadge.online()
+                                                  : StatusBadge.offline(),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 );

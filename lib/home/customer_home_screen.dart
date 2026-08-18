@@ -18,6 +18,7 @@ import '../features/service_lifecycle/services/job_service.dart';
 import '../features/service_lifecycle/widgets/job_status_ui.dart';
 import '../core/widgets/empty_state_widget.dart';
 import '../core/widgets/floating_nav_bar.dart';
+import '../core/widgets/remote_image.dart';
 import '../core/widgets/hero_banner.dart';
 import '../core/widgets/loading_widget.dart';
 import '../core/widgets/popular_service_card.dart';
@@ -237,39 +238,57 @@ class _HomeTab extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(
-                              Icons.person_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
                           Expanded(
                             child: StreamBuilder<AppUser?>(
                               stream: AuthService.instance.currentUserStream,
                               builder: (context, snapshot) {
-                                final name = snapshot.data?.name ?? 'there';
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                final user = snapshot.data;
+                                final name = user?.name ?? 'there';
+                                return Row(
                                   children: [
-                                    Text(
-                                      'Hi $name! 👋',
-                                      style: AppTextStyles.headlineSmall
-                                          .copyWith(color: Colors.white),
-                                    ),
-                                    Text(
-                                      'What needs fixing today?',
-                                      style: AppTextStyles.bodySmall.copyWith(
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
                                         color: Colors.white.withValues(
-                                          alpha: 0.7,
+                                          alpha: 0.2,
                                         ),
+                                        borderRadius: BorderRadius.circular(
+                                          14,
+                                        ),
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: user?.photoUrl != null
+                                          ? RemoteImage(
+                                              url: user!.photoUrl!,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : const Icon(
+                                              Icons.person_rounded,
+                                              color: Colors.white,
+                                              size: 22,
+                                            ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Hi $name! 👋',
+                                            style: AppTextStyles.headlineSmall
+                                                .copyWith(color: Colors.white),
+                                          ),
+                                          Text(
+                                            'What needs fixing today?',
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.7),
+                                                ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],

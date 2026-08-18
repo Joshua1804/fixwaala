@@ -140,6 +140,7 @@ class AppUser {
   final String? phone;
   final UserRole role;
   final String? name;
+  final String? photoUrl;
   final bool emailVerified;
   final bool onboardingComplete;
   final AccountStatus accountStatus;
@@ -162,6 +163,7 @@ class AppUser {
     required this.createdAt,
     this.phone,
     this.name,
+    this.photoUrl,
     this.emailVerified = false,
     this.onboardingComplete = false,
     this.accountStatus = AccountStatus.active,
@@ -178,6 +180,7 @@ class AppUser {
       phone: map['phone'] as String?,
       role: UserRole.values.byName(map['role'] as String),
       name: map['name'] as String?,
+      photoUrl: map['photoUrl'] as String?,
       emailVerified: map['emailVerified'] as bool? ?? false,
       onboardingComplete: map['onboardingComplete'] as bool? ?? false,
       accountStatus: AccountStatus.values.byName(
@@ -209,6 +212,7 @@ class AppUser {
     'phone': phone,
     'role': role.name,
     'name': name,
+    'photoUrl': photoUrl,
     'emailVerified': emailVerified,
     'onboardingComplete': onboardingComplete,
     'accountStatus': accountStatus.name,
@@ -223,6 +227,7 @@ class AppUser {
   AppUser copyWith({
     String? phone,
     String? name,
+    String? photoUrl,
     bool? emailVerified,
     bool? onboardingComplete,
     AccountStatus? accountStatus,
@@ -238,6 +243,7 @@ class AppUser {
       createdAt: createdAt,
       phone: phone ?? this.phone,
       name: name ?? this.name,
+      photoUrl: photoUrl ?? this.photoUrl,
       emailVerified: emailVerified ?? this.emailVerified,
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
       accountStatus: accountStatus ?? this.accountStatus,

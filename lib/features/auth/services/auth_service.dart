@@ -292,7 +292,11 @@ class AuthService {
   /// result, so "Profile updated successfully" was shown for a write that
   /// never happened. Callers must await this and only report success once it
   /// completes.
-  Future<AppUser> updateProfile({String? name, String? phone}) async {
+  Future<AppUser> updateProfile({
+    String? name,
+    String? phone,
+    String? photoUrl,
+  }) async {
     final current = _currentUser;
     if (current == null) {
       throw AuthException('no-current-user', 'You must be signed in.');
@@ -304,6 +308,7 @@ class AuthService {
     final updated = current.copyWith(
       name: trimmedName,
       phone: trimmedPhone,
+      photoUrl: photoUrl,
       updatedAt: DateTime.now(),
     );
     _currentUser = updated;
@@ -320,6 +325,7 @@ class AuthService {
         .update({
           'name': ?trimmedName,
           'phone': ?trimmedPhone,
+          'photoUrl': ?photoUrl,
           'updatedAt': DateTime.now().toIso8601String(),
         });
     return updated;
