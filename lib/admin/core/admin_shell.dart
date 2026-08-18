@@ -38,11 +38,7 @@ const _sections = [
       'Tickets',
     ),
     _NavItem(AdminRouteNames.jobs, Icons.work_outline_rounded, 'Jobs'),
-    _NavItem(
-      AdminRouteNames.payments,
-      Icons.payments_outlined,
-      'Payments',
-    ),
+    _NavItem(AdminRouteNames.payments, Icons.payments_outlined, 'Payments'),
   ]),
   _NavSection('Trust & safety', [
     _NavItem(AdminRouteNames.reports, Icons.flag_outlined, 'Reports'),
@@ -51,7 +47,11 @@ const _sections = [
       Icons.emergency_outlined,
       'Safety alerts',
     ),
-    _NavItem(AdminRouteNames.ratingsModeration, Icons.star_outline_rounded, 'Ratings'),
+    _NavItem(
+      AdminRouteNames.ratingsModeration,
+      Icons.star_outline_rounded,
+      'Ratings',
+    ),
   ]),
   _NavSection('Content', [
     _NavItem(
@@ -87,7 +87,11 @@ class AdminShell extends StatelessWidget {
   final String currentRoute;
   final Widget child;
 
-  const AdminShell({super.key, required this.currentRoute, required this.child});
+  const AdminShell({
+    super.key,
+    required this.currentRoute,
+    required this.child,
+  });
 
   void _go(BuildContext context, String route) {
     if (route == currentRoute) return;

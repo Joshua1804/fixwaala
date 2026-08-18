@@ -49,7 +49,8 @@ Future<String?> showAdminReasonDialog(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) {
-        final canConfirm = !requireNonEmpty || controller.text.trim().isNotEmpty;
+        final canConfirm =
+            !requireNonEmpty || controller.text.trim().isNotEmpty;
         return AlertDialog(
           title: Text(title),
           content: TextField(

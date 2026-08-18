@@ -9,7 +9,11 @@ class PaymentPage {
   final List<PaymentRecord> payments;
   final fs.DocumentSnapshot<Map<String, dynamic>>? lastDoc;
   final bool hasMore;
-  const PaymentPage({required this.payments, required this.lastDoc, required this.hasMore});
+  const PaymentPage({
+    required this.payments,
+    required this.lastDoc,
+    required this.hasMore,
+  });
 }
 
 /// Admin oversight of `payments`. The collection carries denormalised

@@ -58,7 +58,9 @@ class _AdminPlatformSettingsScreenState
       _supportPhone.text = settings.supportPhone;
       _minVersion.text = settings.minSupportedAppVersion;
       _candidateReviewSeconds.text = settings.candidateReviewSeconds.toString();
-      _radii.text = settings.searchRadiiKm.map((r) => r.toStringAsFixed(0)).join(', ');
+      _radii.text = settings.searchRadiiKm
+          .map((r) => r.toStringAsFixed(0))
+          .join(', ');
       _loaded = true;
     });
   }
@@ -102,9 +104,9 @@ class _AdminPlatformSettingsScreenState
         adminId: AdminAuthService.instance.currentUid ?? 'unknown',
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settings saved')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Settings saved')));
       }
     } catch (e) {
       if (mounted) setState(() => _saveError = e.toString());
@@ -140,12 +142,18 @@ class _AdminPlatformSettingsScreenState
                   decoration: BoxDecoration(
                     color: AppColors.info.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: AppColors.info.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline_rounded, color: AppColors.info, size: 18),
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        color: AppColors.info,
+                        size: 18,
+                      ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Text(

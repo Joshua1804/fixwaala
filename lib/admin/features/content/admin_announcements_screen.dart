@@ -42,7 +42,32 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
       destructive: true,
     );
     if (!confirmed) return;
-    await AnnouncementService.instance.delete(announcement);
+    try {
+      await AnnouncementService.instance.delete(announcement);
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  Future<void> _toggleActive(Announcement announcement) async {
+    try {
+      await AnnouncementService.instance.setActive(
+        announcement,
+        !announcement.active,
+      );
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  void _showError(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Something went wrong: $error'),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
 
   @override
@@ -82,14 +107,17 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
           }
           return Column(
             children: announcements.map((a) {
-              final expired = a.expiresAt != null && a.expiresAt!.isBefore(DateTime.now());
+              final expired =
+                  a.expiresAt != null && a.expiresAt!.isBefore(DateTime.now());
               return Container(
                 margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardTheme.color,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.divider.withValues(alpha: 0.6)),
+                  border: Border.all(
+                    color: AppColors.divider.withValues(alpha: 0.6),
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,7 +161,10 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
                             ],
                           ),
                           const SizedBox(height: 4),
-                          Text(a.body, style: Theme.of(context).textTheme.bodyMedium),
+                          Text(
+                            a.body,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                           const SizedBox(height: 6),
                           Text(
                             '${a.audience.name} · ${RelativeTime.format(a.createdAt)}'
@@ -145,9 +176,11 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
                     ),
                     IconButton(
                       tooltip: a.active ? 'Unpublish' : 'Publish',
-                      onPressed: () => AnnouncementService.instance.setActive(a, !a.active),
+                      onPressed: () => _toggleActive(a),
                       icon: Icon(
-                        a.active ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        a.active
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                         size: 18,
                       ),
                     ),
@@ -159,7 +192,11 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
                     IconButton(
                       tooltip: 'Delete',
                       onPressed: () => _delete(a),
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error),
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        size: 18,
+                        color: AppColors.error,
+                      ),
                     ),
                   ],
                 ),
@@ -186,7 +223,9 @@ class _AnnouncementEditorDialogState extends State<_AnnouncementEditorDialog> {
   late final TextEditingController _body;
   late AnnouncementPriority _priority;
   late AnnouncementAudience _audience;
+  DateTime? _expiresAt;
   bool _saving = false;
+  String? _saveError;
 
   @override
   void initState() {
@@ -195,6 +234,7 @@ class _AnnouncementEditorDialogState extends State<_AnnouncementEditorDialog> {
     _body = TextEditingController(text: widget.existing?.body ?? '');
     _priority = widget.existing?.priority ?? AnnouncementPriority.info;
     _audience = widget.existing?.audience ?? AnnouncementAudience.all;
+    _expiresAt = widget.existing?.expiresAt;
   }
 
   @override
@@ -204,35 +244,59 @@ class _AnnouncementEditorDialogState extends State<_AnnouncementEditorDialog> {
     super.dispose();
   }
 
+  Future<void> _pickExpiry() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _expiresAt ?? DateTime.now().add(const Duration(days: 7)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) setState(() => _expiresAt = picked);
+  }
+
   Future<void> _save() async {
     if (_title.text.trim().isEmpty || _body.text.trim().isEmpty) return;
-    setState(() => _saving = true);
-    final existing = widget.existing;
-    if (existing == null) {
-      await AnnouncementService.instance.create(
-        title: _title.text.trim(),
-        body: _body.text.trim(),
-        priority: _priority,
-        audience: _audience,
-        adminId: AdminAuthService.instance.currentUid ?? 'unknown',
-      );
-    } else {
-      await AnnouncementService.instance.update(
-        existing.copyWith(
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
+    try {
+      final existing = widget.existing;
+      if (existing == null) {
+        await AnnouncementService.instance.create(
           title: _title.text.trim(),
           body: _body.text.trim(),
           priority: _priority,
           audience: _audience,
-        ),
-      );
+          adminId: AdminAuthService.instance.currentUid ?? 'unknown',
+          expiresAt: _expiresAt,
+        );
+      } else {
+        await AnnouncementService.instance.update(
+          existing.copyWith(
+            title: _title.text.trim(),
+            body: _body.text.trim(),
+            priority: _priority,
+            audience: _audience,
+            expiresAt: _expiresAt,
+            clearExpiresAt: _expiresAt == null,
+          ),
+        );
+      }
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) setState(() => _saveError = e.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    if (mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.existing == null ? 'New announcement' : 'Edit announcement'),
+      title: Text(
+        widget.existing == null ? 'New announcement' : 'Edit announcement',
+      ),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -267,6 +331,37 @@ class _AnnouncementEditorDialogState extends State<_AnnouncementEditorDialog> {
                   .toList(),
               onChanged: (v) => setState(() => _audience = v ?? _audience),
             ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _expiresAt == null
+                        ? 'No expiry — stays live until unpublished'
+                        : 'Expires ${RelativeTime.format(_expiresAt!)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _pickExpiry,
+                  child: Text(_expiresAt == null ? 'Set expiry' : 'Change'),
+                ),
+                if (_expiresAt != null)
+                  TextButton(
+                    onPressed: () => setState(() => _expiresAt = null),
+                    child: const Text('Clear'),
+                  ),
+              ],
+            ),
+            if (_saveError != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _saveError!,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.error),
+              ),
+            ],
           ],
         ),
       ),

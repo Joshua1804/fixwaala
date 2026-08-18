@@ -70,17 +70,41 @@ class AdminDashboardService {
 
   Future<DashboardStats> load() async {
     final results = await Future.wait([
-      _db.collection('users').where('role', isEqualTo: 'customer').count().get(),
-      _db.collection('users').where('role', isEqualTo: 'provider').count().get(),
+      _db
+          .collection('users')
+          .where('role', isEqualTo: 'customer')
+          .count()
+          .get(),
+      _db
+          .collection('users')
+          .where('role', isEqualTo: 'provider')
+          .count()
+          .get(),
       _db
           .collection('tickets')
           .where('status', whereIn: _activeTicketStatuses)
           .count()
           .get(),
-      _db.collection('tickets').where('status', isEqualTo: 'failed').count().get(),
-      _db.collection('jobs').where('status', whereIn: _activeJobStatuses).count().get(),
-      _db.collection('jobs').where('status', isEqualTo: 'completed').count().get(),
-      _db.collection('reports').where('status', isEqualTo: 'open').count().get(),
+      _db
+          .collection('tickets')
+          .where('status', isEqualTo: 'failed')
+          .count()
+          .get(),
+      _db
+          .collection('jobs')
+          .where('status', whereIn: _activeJobStatuses)
+          .count()
+          .get(),
+      _db
+          .collection('jobs')
+          .where('status', isEqualTo: 'completed')
+          .count()
+          .get(),
+      _db
+          .collection('reports')
+          .where('status', isEqualTo: 'open')
+          .count()
+          .get(),
       _db
           .collection('safetyAlerts')
           .where('resolved', isEqualTo: false)

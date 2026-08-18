@@ -62,7 +62,11 @@ class MatchingService {
     required String providerId,
     AppUser? provider,
   }) async {
-    final ticket = await TicketService.instance.watchTicket(ticketId).first;
+    // Not yet the assigned provider, so the private `tickets/{id}` document
+    // (which carries the customer's exact location) is off limits — the
+    // security rules only grant that once assigned. The redacted broadcast
+    // projection has everything accepting needs.
+    final ticket = await TicketService.instance.getOpenTicket(ticketId);
 
     final providerLocation = provider?.providerProfile?.liveLocation;
     final distanceKm = providerLocation == null
@@ -341,6 +345,79 @@ class MatchingService {
         sub = _changes.stream
             .where((id) => id == ticketId)
             .listen((_) => emit());
+      },
+      onCancel: () => sub?.cancel(),
+    );
+    return controller.stream;
+  }
+
+  /// Live view of [providerId]'s own candidacy on [ticketId], if any. Lets a
+  /// provider's own opportunity card react to their pending/settled status
+  /// instead of continuing to show Accept/Decline after they've already
+  /// acted — previously the card had no idea an accept had gone through, so
+  /// a provider could tap Decline on a ticket they'd just accepted.
+  Stream<CandidateLease?> watchMyLease(String ticketId, String providerId) {
+    if (_live) {
+      return _candidatesCol(ticketId)
+          .doc(providerId)
+          .snapshots()
+          .map(
+            (snap) => snap.exists ? CandidateLease.fromMap(snap.data()!) : null,
+          );
+    }
+
+    late final StreamController<CandidateLease?> controller;
+    StreamSubscription<String>? sub;
+    void emit() => controller.add(_candidates[ticketId]?[providerId]);
+
+    controller = StreamController<CandidateLease?>(
+      onListen: () {
+        emit();
+        sub = _changes.stream
+            .where((id) => id == ticketId)
+            .listen((_) => emit());
+      },
+      onCancel: () => sub?.cancel(),
+    );
+    return controller.stream;
+  }
+
+  /// [providerId]'s leases currently sitting at [CandidateStatus.notSelected]
+  /// — i.e. every ticket where a customer confirmed someone else. The caller
+  /// (see `_CandidateOutcomeNotifier` in the provider home screen) diffs this
+  /// against what it has already announced, the same seed-then-diff shape
+  /// used for new-ticket alerts: without seeding, every app restart would
+  /// re-announce every loss a provider has ever taken.
+  Stream<List<CandidateLease>> watchMyOutcomes(String providerId) {
+    if (_live) {
+      return FirebaseService.instance.firestore
+          .collectionGroup('candidates')
+          .where('providerId', isEqualTo: providerId)
+          .where('status', isEqualTo: CandidateStatus.notSelected.name)
+          .snapshots()
+          .map(
+            (snap) =>
+                snap.docs.map((d) => CandidateLease.fromMap(d.data())).toList(),
+          );
+    }
+
+    late final StreamController<List<CandidateLease>> controller;
+    StreamSubscription<String>? sub;
+    void emit() {
+      final outcomes = <CandidateLease>[];
+      for (final forTicket in _candidates.values) {
+        final lease = forTicket[providerId];
+        if (lease != null && lease.status == CandidateStatus.notSelected) {
+          outcomes.add(lease);
+        }
+      }
+      controller.add(outcomes);
+    }
+
+    controller = StreamController<List<CandidateLease>>(
+      onListen: () {
+        emit();
+        sub = _changes.stream.listen((_) => emit());
       },
       onCancel: () => sub?.cancel(),
     );

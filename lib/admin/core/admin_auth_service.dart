@@ -59,8 +59,7 @@ class AdminAuthService {
   /// refresh.
   Stream<AdminAuthState> get authStateChanges async* {
     yield const AdminAuthState.checking();
-    await for (final user in FirebaseService.instance.auth
-        .authStateChanges()) {
+    await for (final user in FirebaseService.instance.auth.authStateChanges()) {
       if (user == null) {
         yield const AdminAuthState.signedOut();
         continue;

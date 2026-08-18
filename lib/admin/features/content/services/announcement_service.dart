@@ -15,7 +15,10 @@ class AnnouncementService {
     return _col
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => Announcement.fromMap(d.data())).toList());
+        .map(
+          (snap) =>
+              snap.docs.map((d) => Announcement.fromMap(d.data())).toList(),
+        );
   }
 
   Future<void> create({

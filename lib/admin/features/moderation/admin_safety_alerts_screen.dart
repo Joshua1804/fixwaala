@@ -37,11 +37,23 @@ class _AdminSafetyAlertsScreenState extends State<AdminSafetyAlertsScreen> {
     );
     if (!confirmed) return;
     setState(() => _busyId = true);
-    await AdminModerationService.instance.resolveSafetyAlert(
-      alert,
-      adminId: AdminAuthService.instance.currentUid ?? 'unknown',
-    );
-    if (mounted) setState(() => _busyId = false);
+    try {
+      await AdminModerationService.instance.resolveSafetyAlert(
+        alert,
+        adminId: AdminAuthService.instance.currentUid ?? 'unknown',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Something went wrong: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busyId = false);
+    }
   }
 
   @override
@@ -70,7 +82,9 @@ class _AdminSafetyAlertsScreenState extends State<AdminSafetyAlertsScreen> {
           final alerts = snapshot.data ?? [];
           if (alerts.isEmpty) {
             return AdminEmptyView(
-              title: _showResolved ? 'No safety alerts' : 'No unresolved alerts',
+              title: _showResolved
+                  ? 'No safety alerts'
+                  : 'No unresolved alerts',
               message: _showResolved
                   ? 'No safety alerts have ever been raised.'
                   : 'Every safety alert has been resolved.',
@@ -97,7 +111,9 @@ class _AdminSafetyAlertsScreenState extends State<AdminSafetyAlertsScreen> {
                   children: [
                     Icon(
                       Icons.emergency_outlined,
-                      color: alert.resolved ? AppColors.textHint : AppColors.error,
+                      color: alert.resolved
+                          ? AppColors.textHint
+                          : AppColors.error,
                     ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(

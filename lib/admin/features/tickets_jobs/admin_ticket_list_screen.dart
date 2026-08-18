@@ -100,9 +100,13 @@ class _AdminTicketListScreenState extends State<AdminTicketListScreen> {
                           arguments: ticket.id,
                         ),
                         cells: [
-                          DataCell(Text(ticket.customerName.isNotEmpty
-                              ? ticket.customerName
-                              : ticket.customerFirstName)),
+                          DataCell(
+                            Text(
+                              ticket.customerName.isNotEmpty
+                                  ? ticket.customerName
+                                  : ticket.customerFirstName,
+                            ),
+                          ),
                           DataCell(
                             Row(
                               mainAxisSize: MainAxisSize.min,

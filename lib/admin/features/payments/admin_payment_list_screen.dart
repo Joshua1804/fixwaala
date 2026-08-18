@@ -129,7 +129,9 @@ class _AdminPaymentListScreenState extends State<AdminPaymentListScreen> {
                           arguments: payment.id,
                         ),
                         cells: [
-                          DataCell(Text('₹${payment.amount.toStringAsFixed(0)}')),
+                          DataCell(
+                            Text('₹${payment.amount.toStringAsFixed(0)}'),
+                          ),
                           DataCell(Text(payment.method)),
                           DataCell(
                             AdminStatusChip.semantic(
@@ -139,13 +141,20 @@ class _AdminPaymentListScreenState extends State<AdminPaymentListScreen> {
                           ),
                           DataCell(
                             payment.disputeStatus == PaymentDisputeStatus.none
-                                ? const Text('—', style: TextStyle(color: AppColors.textHint))
+                                ? const Text(
+                                    '—',
+                                    style: TextStyle(color: AppColors.textHint),
+                                  )
                                 : AdminStatusChip.semantic(
                                     disputeStatusLabel(payment.disputeStatus),
-                                    tone: disputeStatusTone(payment.disputeStatus),
+                                    tone: disputeStatusTone(
+                                      payment.disputeStatus,
+                                    ),
                                   ),
                           ),
-                          DataCell(Text(RelativeTime.format(payment.processedAt))),
+                          DataCell(
+                            Text(RelativeTime.format(payment.processedAt)),
+                          ),
                         ],
                       );
                     }).toList(),

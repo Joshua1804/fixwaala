@@ -21,6 +21,10 @@ class AdminPageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Every route here, including sidebar-to-sidebar (AdminShell._go), is
+    // pushed rather than replaced, so this is true whenever there's
+    // somewhere to return to.
+    final canPop = Navigator.canPop(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.xxl),
       child: Column(
@@ -29,6 +33,16 @@ class AdminPageScaffold extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (canPop)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4, top: 2),
+                  child: IconButton(
+                    tooltip: 'Back',
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

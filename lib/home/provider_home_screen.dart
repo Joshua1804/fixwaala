@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/constants/app_constants.dart';
 import '../core/models/enums.dart';
 import '../core/models/user_model.dart';
 import '../core/routes/route_names.dart';
-import '../core/services/location_service.dart';
 import '../core/services/notification_service.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_durations.dart';
@@ -13,6 +14,7 @@ import '../core/utils/motion.dart';
 import '../features/auth/services/auth_service.dart';
 import '../features/geo_broadcast/services/geo_broadcast_service.dart';
 import '../features/geo_broadcast/services/provider_presence_service.dart';
+import '../features/geo_broadcast/widgets/incoming_requests_section.dart';
 import '../features/provider_dashboard/models/analytics_model.dart';
 import '../features/provider_dashboard/screens/provider_dashboard_screen.dart';
 import '../features/provider_dashboard/services/analytics_service.dart';
@@ -20,13 +22,12 @@ import '../features/service_lifecycle/models/job_model.dart';
 import '../features/service_lifecycle/screens/active_jobs_screen.dart';
 import '../features/service_lifecycle/services/job_service.dart';
 import '../features/customer_ticket/models/ticket_model.dart';
+import '../features/trust_gated_matching/models/candidate_lease.dart';
 import '../features/trust_gated_matching/services/matching_service.dart';
 import '../core/widgets/floating_nav_bar.dart';
 import '../core/widgets/status_badge.dart';
 import '../core/widgets/profile/profile_settings_scaffold.dart';
 import '../core/widgets/profile/profile_tile.dart';
-import '../core/utils/eta_estimate.dart';
-import '../core/utils/error_messages.dart';
 
 /// Provider home screen with bottom navigation, gradient header with
 /// earnings, online toggle with animation, quick stats, and opportunity cards.
@@ -84,47 +85,51 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: IndexedStack(
-        index: _currentTab,
-        children: [
-          _ProviderHomeTab(
-            fadeAnimation: _fade,
-            online: _online,
-            onToggleOnline: _handleToggleOnline,
-            providerId: _providerId,
-          ),
-          const ActiveJobsScreen(),
-          const ProviderDashboardScreen(),
-          _ProviderProfileTab(),
-        ],
-      ),
-      bottomNavigationBar: FloatingNavBar(
-        currentIndex: _currentTab,
-        onTap: (i) => setState(() => _currentTab = i),
-        items: const [
-          FloatingNavBarItem(
-            icon: Icons.home_outlined,
-            activeIcon: Icons.home_rounded,
-            label: 'Home',
-          ),
-          FloatingNavBarItem(
-            icon: Icons.work_outline_rounded,
-            activeIcon: Icons.work_rounded,
-            label: 'Jobs',
-          ),
-          FloatingNavBarItem(
-            icon: Icons.bar_chart_outlined,
-            activeIcon: Icons.bar_chart_rounded,
-            label: 'Dashboard',
-          ),
-          FloatingNavBarItem(
-            icon: Icons.person_outline_rounded,
-            activeIcon: Icons.person_rounded,
-            label: 'Profile',
-          ),
-        ],
+    return _CandidateOutcomeNotifier(
+      providerId: _providerId,
+      child: Scaffold(
+        extendBody: true,
+        body: IndexedStack(
+          index: _currentTab,
+          children: [
+            _ProviderHomeTab(
+              fadeAnimation: _fade,
+              online: _online,
+              onToggleOnline: _handleToggleOnline,
+              providerId: _providerId,
+              onViewAllRequests: () => setState(() => _currentTab = 1),
+            ),
+            ActiveJobsScreen(online: _online, providerId: _providerId),
+            const ProviderDashboardScreen(),
+            _ProviderProfileTab(),
+          ],
+        ),
+        bottomNavigationBar: FloatingNavBar(
+          currentIndex: _currentTab,
+          onTap: (i) => setState(() => _currentTab = i),
+          items: const [
+            FloatingNavBarItem(
+              icon: Icons.home_outlined,
+              activeIcon: Icons.home_rounded,
+              label: 'Home',
+            ),
+            FloatingNavBarItem(
+              icon: Icons.work_outline_rounded,
+              activeIcon: Icons.work_rounded,
+              label: 'Jobs',
+            ),
+            FloatingNavBarItem(
+              icon: Icons.bar_chart_outlined,
+              activeIcon: Icons.bar_chart_rounded,
+              label: 'Dashboard',
+            ),
+            FloatingNavBarItem(
+              icon: Icons.person_outline_rounded,
+              activeIcon: Icons.person_rounded,
+              label: 'Profile',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -136,12 +141,14 @@ class _ProviderHomeTab extends StatelessWidget {
   final bool online;
   final ValueChanged<bool> onToggleOnline;
   final String providerId;
+  final VoidCallback onViewAllRequests;
 
   const _ProviderHomeTab({
     required this.fadeAnimation,
     required this.online,
     required this.onToggleOnline,
     required this.providerId,
+    required this.onViewAllRequests,
   });
 
   @override
@@ -353,7 +360,7 @@ class _ProviderHomeTab extends StatelessWidget {
               // jobs ever arrived.
               if (categories.isEmpty) {
                 return const SliverToBoxAdapter(
-                  child: _ProviderDiagnostic(
+                  child: ProviderDiagnostic(
                     icon: Icons.handyman_outlined,
                     title: 'No skills selected',
                     message:
@@ -363,7 +370,7 @@ class _ProviderHomeTab extends StatelessWidget {
               }
               if (location == null) {
                 return SliverToBoxAdapter(
-                  child: _ProviderDiagnostic(
+                  child: ProviderDiagnostic(
                     icon: Icons.location_off_rounded,
                     title: 'Location unavailable',
                     message:
@@ -396,116 +403,12 @@ class _ProviderHomeTab extends StatelessWidget {
                         opacity: fadeAnimation,
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    'Incoming Service Requests',
-                                    style: AppTextStyles.titleLarge,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.error,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      '${tickets.length} LIVE',
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              if (snapshot.hasError)
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error.withValues(
-                                      alpha: 0.08,
-                                    ),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: AppColors.error.withValues(
-                                        alpha: 0.3,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.error_outline_rounded,
-                                        color: AppColors.error,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          'Could not load requests: '
-                                          '${snapshot.error}',
-                                          style: AppTextStyles.bodyMedium
-                                              .copyWith(color: AppColors.error),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else if (tickets.isEmpty)
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).cardTheme.color,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: AppColors.divider.withValues(
-                                        alpha: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.search_rounded,
-                                        color: AppColors.primary,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          'Waiting for customer requests nearby...',
-                                          style: AppTextStyles.bodyMedium
-                                              .copyWith(
-                                                color: AppColors.textSecondary,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else
-                                ...tickets.map(
-                                  (ticket) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 10),
-                                    child: _OpportunityTicketCard(
-                                      ticket: ticket,
-                                      distanceKm: LocationService.instance
-                                          .distanceKm(
-                                            location,
-                                            ticket.approximateLocation,
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                            ],
+                          child: IncomingRequestsSection(
+                            tickets: tickets,
+                            providerLocation: location,
+                            error: snapshot.error,
+                            limit: 3,
+                            onViewAll: onViewAllRequests,
                           ),
                         ),
                       ),
@@ -906,265 +809,83 @@ class _NewTicketNotifierState extends State<_NewTicketNotifier> {
   Widget build(BuildContext context) => widget.child;
 }
 
-class _OpportunityTicketCard extends StatefulWidget {
-  final Ticket ticket;
-  final double distanceKm;
-  const _OpportunityTicketCard({
-    required this.ticket,
-    required this.distanceKm,
+/// Tells a provider when a customer confirmed someone else for a ticket
+/// they'd accepted. Mounted once at the screen root so it fires regardless
+/// of which tab is open — a provider who loses out on the Jobs tab still
+/// needs to know.
+///
+/// `watchMyOutcomes` only reports leases currently sitting at
+/// `notSelected`, so the first emission is whatever already happened before
+/// this session; seeding it as "already announced" (same shape as
+/// [_NewTicketNotifier]) stops every app restart from re-surfacing every
+/// loss a provider has ever taken.
+class _CandidateOutcomeNotifier extends StatefulWidget {
+  final String providerId;
+  final Widget child;
+  const _CandidateOutcomeNotifier({
+    required this.providerId,
+    required this.child,
   });
 
   @override
-  State<_OpportunityTicketCard> createState() => _OpportunityTicketCardState();
+  State<_CandidateOutcomeNotifier> createState() =>
+      _CandidateOutcomeNotifierState();
 }
 
-class _OpportunityTicketCardState extends State<_OpportunityTicketCard> {
-  bool _accepting = false;
-  bool _declined = false;
+class _CandidateOutcomeNotifierState extends State<_CandidateOutcomeNotifier> {
+  static final Set<String> _announcedTicketIds = {};
+  static bool _seeded = false;
 
-  Future<void> _accept(AppUser? currentProvider) async {
-    if (currentProvider == null) {
-      // Accepting under the wrong identity would silently fail the
-      // Firestore write (candidate docId must equal the accepting
-      // provider's own auth uid per firestore.rules) and leave the
-      // customer stuck waiting with no candidate ever appearing.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Still loading your account — try again in a moment.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+  StreamSubscription<List<CandidateLease>>? _sub;
+  String? _watchingProviderId;
+
+  @override
+  void initState() {
+    super.initState();
+    _resubscribe();
+  }
+
+  @override
+  void didUpdateWidget(_CandidateOutcomeNotifier oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.providerId != widget.providerId) _resubscribe();
+  }
+
+  void _resubscribe() {
+    _sub?.cancel();
+    _watchingProviderId = widget.providerId;
+    _sub = MatchingService.instance
+        .watchMyOutcomes(widget.providerId)
+        .listen(_check);
+  }
+
+  void _check(List<CandidateLease> outcomes) {
+    // A stale subscription's late emission arriving after the provider id
+    // changed would otherwise announce (or seed) under the wrong identity.
+    if (widget.providerId != _watchingProviderId) return;
+    if (!_seeded) {
+      _announcedTicketIds.addAll(outcomes.map((o) => o.ticketId));
+      _seeded = true;
       return;
     }
-    setState(() => _accepting = true);
-    try {
-      await MatchingService.instance.acceptOpportunity(
-        ticketId: widget.ticket.id,
-        providerId: currentProvider.id,
-        provider: currentProvider,
+    for (final outcome in outcomes) {
+      if (_announcedTicketIds.contains(outcome.ticketId)) continue;
+      _announcedTicketIds.add(outcome.ticketId);
+      NotificationService.instance.showLocalAlert(
+        title: 'Request no longer available',
+        body:
+            'The customer chose another provider for the '
+            '${outcome.category.name} job.',
       );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Accepted — waiting for the customer to confirm.'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-    } catch (error) {
-      // This was `try`/`finally` with no `catch`: a restricted account or any
-      // Firestore failure threw straight past the UI, so the provider saw the
-      // button re-enable and nothing else, with no idea the accept had failed.
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(ErrorMessages.friendly(error)),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _accepting = false);
     }
   }
 
-  Future<void> _decline(AppUser? currentProvider) async {
-    if (currentProvider == null) return;
-    await MatchingService.instance.declineOpportunity(
-      ticketId: widget.ticket.id,
-      providerId: currentProvider.id,
-    );
-    if (!mounted) return;
-    setState(() => _declined = true);
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (_declined) return const SizedBox.shrink();
-    return FutureBuilder<AppUser?>(
-      future: AuthService.instance.currentUser(),
-      builder: (context, userSnap) {
-        final currentProvider = userSnap.data;
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardTheme.color,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      widget.ticket.category.name.toUpperCase(),
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${widget.ticket.createdAt.hour.toString().padLeft(2, '0')}:${widget.ticket.createdAt.minute.toString().padLeft(2, '0')}',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Customer: ${widget.ticket.customerName}',
-                style: AppTextStyles.titleMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.ticket.description,
-                style: AppTextStyles.bodyMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.route_outlined,
-                    size: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${widget.distanceKm.toStringAsFixed(1)} km away · '
-                    '~${EtaEstimate.minutesFor(widget.distanceKm)} min',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _accepting
-                          ? null
-                          : () => _decline(currentProvider),
-                      child: const Text('Decline'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _accepting
-                          ? null
-                          : () => _accept(currentProvider),
-                      icon: _accepting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.check_circle_outline, size: 20),
-                      label: const Text('Accept'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Explains why the opportunity feed is empty, and offers the fix.
-class _ProviderDiagnostic extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  const _ProviderDiagnostic({
-    required this.icon,
-    required this.title,
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: AppColors.warning),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTextStyles.titleMedium),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                if (actionLabel != null) ...[
-                  const SizedBox(height: 8),
-                  TextButton(onPressed: onAction, child: Text(actionLabel!)),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => widget.child;
 }

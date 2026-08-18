@@ -9,7 +9,11 @@ class UserPage {
   final List<AppUser> users;
   final fs.DocumentSnapshot<Map<String, dynamic>>? lastDoc;
   final bool hasMore;
-  const UserPage({required this.users, required this.lastDoc, required this.hasMore});
+  const UserPage({
+    required this.users,
+    required this.lastDoc,
+    required this.hasMore,
+  });
 }
 
 /// Admin's view of the `users` collection: browse/filter/paginate, search,
@@ -96,7 +100,11 @@ class AdminUserService {
   /// Editable-by-admin fields only — a deliberately smaller set than what
   /// `firestore.rules` would technically allow `isAdmin()` to write, so a
   /// slip in this screen can't silently rewrite `role` or `createdAt`.
-  Future<void> updateProfile(AppUser user, {String? name, String? phone}) async {
+  Future<void> updateProfile(
+    AppUser user, {
+    String? name,
+    String? phone,
+  }) async {
     await _col.doc(user.id).update({
       'name': ?name,
       'phone': ?phone,

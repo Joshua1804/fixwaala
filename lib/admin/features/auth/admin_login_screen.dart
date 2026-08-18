@@ -63,9 +63,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
       if (mounted) {
-        setState(
-          () => _error = _friendlyMessage(e.toString()),
-        );
+        setState(() => _error = _friendlyMessage(e.toString()));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);

@@ -39,7 +39,9 @@ class _AdminPaymentDetailScreenState extends State<AdminPaymentDetailScreen> {
     PaymentRecord payment,
     PaymentDisputeStatus status,
   ) async {
-    final noteController = TextEditingController(text: payment.disputeNote ?? '');
+    final noteController = TextEditingController(
+      text: payment.disputeNote ?? '',
+    );
     final note = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -56,7 +58,8 @@ class _AdminPaymentDetailScreenState extends State<AdminPaymentDetailScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(noteController.text.trim()),
+            onPressed: () =>
+                Navigator.of(context).pop(noteController.text.trim()),
             child: const Text('Save'),
           ),
         ],
@@ -64,17 +67,26 @@ class _AdminPaymentDetailScreenState extends State<AdminPaymentDetailScreen> {
     );
     if (note == null) return;
     setState(() => _busy = true);
-    await AdminPaymentService.instance.setDispute(
-      payment,
-      status: status,
-      note: note,
-      adminId: AdminAuthService.instance.currentUid ?? 'unknown',
-    );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _load();
-    });
+    try {
+      await AdminPaymentService.instance.setDispute(
+        payment,
+        status: status,
+        note: note,
+        adminId: AdminAuthService.instance.currentUid ?? 'unknown',
+      );
+      if (mounted) setState(_load);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Something went wrong: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -112,7 +124,8 @@ class _AdminPaymentDetailScreenState extends State<AdminPaymentDetailScreen> {
         }
         return AdminPageScaffold(
           title: 'Payment ${payment.id}',
-          subtitle: '₹${payment.amount.toStringAsFixed(0)} via ${payment.method}',
+          subtitle:
+              '₹${payment.amount.toStringAsFixed(0)} via ${payment.method}',
           actions: [
             if (_busy)
               const Padding(
@@ -125,10 +138,9 @@ class _AdminPaymentDetailScreenState extends State<AdminPaymentDetailScreen> {
               ),
             IconButton(
               tooltip: 'Open job',
-              onPressed: () => Navigator.of(context).pushNamed(
-                AdminRouteNames.jobDetail,
-                arguments: payment.jobId,
-              ),
+              onPressed: () => Navigator.of(
+                context,
+              ).pushNamed(AdminRouteNames.jobDetail, arguments: payment.jobId),
               icon: const Icon(Icons.work_outline_rounded),
             ),
           ],
@@ -216,7 +228,8 @@ class _AdminPaymentDetailScreenState extends State<AdminPaymentDetailScreen> {
                                 ),
                           child: const Text('Open dispute'),
                         ),
-                      if (payment.disputeStatus == PaymentDisputeStatus.disputed) ...[
+                      if (payment.disputeStatus ==
+                          PaymentDisputeStatus.disputed) ...[
                         OutlinedButton(
                           onPressed: _busy
                               ? null
@@ -261,7 +274,8 @@ class _AdminPaymentDetailScreenState extends State<AdminPaymentDetailScreen> {
     );
   }
 
-  Widget _row(String label, String value) => _DetailRow(label: label, value: value);
+  Widget _row(String label, String value) =>
+      _DetailRow(label: label, value: value);
 }
 
 class _Section extends StatelessWidget {

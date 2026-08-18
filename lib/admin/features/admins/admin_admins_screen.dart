@@ -109,7 +109,11 @@ class _GrantAccessPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.terminal_rounded, size: 18, color: AppColors.textSecondary),
+              const Icon(
+                Icons.terminal_rounded,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Text('Grant or revoke access', style: AppTextStyles.titleSmall),
             ],
@@ -124,9 +128,13 @@ class _GrantAccessPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          _CommandLine(command: 'node scripts/admin/grant_admin_claim.js grant <email>'),
+          _CommandLine(
+            command: 'node scripts/admin/grant_admin_claim.js grant <email>',
+          ),
           const SizedBox(height: AppSpacing.sm),
-          _CommandLine(command: 'node scripts/admin/grant_admin_claim.js revoke <email>'),
+          _CommandLine(
+            command: 'node scripts/admin/grant_admin_claim.js revoke <email>',
+          ),
         ],
       ),
     );

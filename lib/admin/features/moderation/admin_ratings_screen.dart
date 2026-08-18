@@ -63,12 +63,21 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
     );
     if (!confirmed) return;
     setState(() => _busy = true);
-    await AdminModerationService.instance.deleteRating(rating);
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _reset();
-    });
+    try {
+      await AdminModerationService.instance.deleteRating(rating);
+      if (mounted) _reset();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Something went wrong: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -107,11 +116,13 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
           }
           return Column(
             children: [
-              ...page.ratings.map((rating) => _RatingCard(
-                rating: rating,
-                busy: _busy,
-                onDelete: () => _delete(rating),
-              )),
+              ...page.ratings.map(
+                (rating) => _RatingCard(
+                  rating: rating,
+                  busy: _busy,
+                  onDelete: () => _delete(rating),
+                ),
+              ),
               const SizedBox(height: AppSpacing.sm),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -152,7 +163,11 @@ class _RatingCard extends StatelessWidget {
   final Rating rating;
   final bool busy;
   final VoidCallback onDelete;
-  const _RatingCard({required this.rating, required this.busy, required this.onDelete});
+  const _RatingCard({
+    required this.rating,
+    required this.busy,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +186,9 @@ class _RatingCard extends StatelessWidget {
             children: List.generate(
               5,
               (i) => Icon(
-                i < rating.stars ? Icons.star_rounded : Icons.star_border_rounded,
+                i < rating.stars
+                    ? Icons.star_rounded
+                    : Icons.star_border_rounded,
                 size: 16,
                 color: AppColors.warning,
               ),
@@ -192,16 +209,18 @@ class _RatingCard extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pushNamed(
-              AdminRouteNames.userDetail,
-              arguments: rating.toUserId,
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).pushNamed(AdminRouteNames.userDetail, arguments: rating.toUserId),
             child: const Text('Recipient'),
           ),
           IconButton(
             tooltip: 'Delete',
             onPressed: busy ? null : onDelete,
-            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: AppColors.error,
+            ),
           ),
         ],
       ),

@@ -60,9 +60,13 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
                   initialValue: _targetTypeFilter,
                   decoration: const InputDecoration(labelText: 'Target type'),
                   items: [
-                    const DropdownMenuItem<String?>(value: null, child: Text('All')),
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('All'),
+                    ),
                     ..._targetTypes.map(
-                      (t) => DropdownMenuItem<String?>(value: t, child: Text(t)),
+                      (t) =>
+                          DropdownMenuItem<String?>(value: t, child: Text(t)),
                     ),
                   ],
                   onChanged: (v) => setState(() => _targetTypeFilter = v),
@@ -97,7 +101,8 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
               if (events.isEmpty) {
                 return const AdminEmptyView(
                   title: 'No matching events',
-                  message: 'Nothing recorded yet, or nothing matches these filters.',
+                  message:
+                      'Nothing recorded yet, or nothing matches these filters.',
                   icon: Icons.history_rounded,
                 );
               }
@@ -115,14 +120,20 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
                       DataCell(Text(e.actorAdminEmail)),
                       DataCell(
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             e.action,
-                            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ),

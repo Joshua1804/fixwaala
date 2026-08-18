@@ -10,14 +10,22 @@ class ReportPage {
   final List<Report> reports;
   final fs.DocumentSnapshot<Map<String, dynamic>>? lastDoc;
   final bool hasMore;
-  const ReportPage({required this.reports, required this.lastDoc, required this.hasMore});
+  const ReportPage({
+    required this.reports,
+    required this.lastDoc,
+    required this.hasMore,
+  });
 }
 
 class RatingPage {
   final List<Rating> ratings;
   final fs.DocumentSnapshot<Map<String, dynamic>>? lastDoc;
   final bool hasMore;
-  const RatingPage({required this.ratings, required this.lastDoc, required this.hasMore});
+  const RatingPage({
+    required this.ratings,
+    required this.lastDoc,
+    required this.hasMore,
+  });
 }
 
 /// Trust & safety moderation: reports, safety alerts, and rating takedowns.
@@ -101,10 +109,16 @@ class AdminModerationService {
     return query
         .limit(200)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => SafetyAlert.fromMap(d.data())).toList());
+        .map(
+          (snap) =>
+              snap.docs.map((d) => SafetyAlert.fromMap(d.data())).toList(),
+        );
   }
 
-  Future<void> resolveSafetyAlert(SafetyAlert alert, {required String adminId}) async {
+  Future<void> resolveSafetyAlert(
+    SafetyAlert alert, {
+    required String adminId,
+  }) async {
     await _safetyAlertsCol.doc(alert.id).update({
       'resolved': true,
       'resolvedByAdminId': adminId,
