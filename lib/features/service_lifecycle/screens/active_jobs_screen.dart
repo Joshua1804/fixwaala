@@ -59,6 +59,17 @@ class _ActiveJobsScreenState extends State<ActiveJobsScreen>
     if (widget.online != null && widget.online != oldWidget.online) {
       setState(() => _online = widget.online!);
     }
+    // [ProviderHomeScreen] starts this tab with a placeholder id
+    // (`AppConstants.demoProviderId`) and swaps in the real signed-in uid
+    // once `currentUser()` resolves. That update reaches this screen as a
+    // new `widget.providerId`, but `_providerId` was only ever copied from
+    // it in `initState`, so without this it stayed pinned to the
+    // placeholder for the rest of the session — Active and History (which
+    // filter jobs by exact provider id) stayed empty even though jobs
+    // existed, while Incoming kept working because it doesn't filter on it.
+    if (widget.providerId != null && widget.providerId != oldWidget.providerId) {
+      setState(() => _providerId = widget.providerId);
+    }
   }
 
   Future<void> _loadProviderContext() async {
