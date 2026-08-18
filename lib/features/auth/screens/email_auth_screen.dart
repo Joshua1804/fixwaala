@@ -8,6 +8,23 @@ import '../../../core/utils/validators.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../services/auth_service.dart';
 
+/// Human-readable label for a role, matching how it's used in copy
+/// elsewhere in the auth flow ("Create your provider account", etc.).
+String _roleLabel(UserRole role) =>
+    role == UserRole.provider ? 'Provider' : 'Customer';
+
+/// Null when [accountRole] matches the role of the login page the user is
+/// on ([loginPageRole]); otherwise a message explaining the mismatch, for
+/// the "wrong login page" dialog shown after a successful sign-in.
+String? roleMismatchMessage({
+  required UserRole loginPageRole,
+  required UserRole accountRole,
+}) {
+  if (loginPageRole == accountRole) return null;
+  return 'This is a ${_roleLabel(accountRole)} account, but you signed in '
+      'on the ${_roleLabel(loginPageRole)} page.';
+}
+
 /// Email/password sign-in and registration (Module 1).
 ///
 /// The role argument only matters for registration — an existing user's
@@ -59,11 +76,44 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
           context,
         ).pushReplacementNamed(RouteNames.emailVerification);
       } else {
-        await AuthService.instance.login(
+        final user = await AuthService.instance.login(
           email: _emailController.text,
           password: _passwordController.text,
         );
         if (!mounted) return;
+        final mismatch = roleMismatchMessage(
+          loginPageRole: role,
+          accountRole: user.role,
+        );
+        if (mismatch != null) {
+          final goToCorrectPage = await showDialog<bool>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Wrong sign-in page'),
+              content: Text(
+                '$mismatch Go to the ${_roleLabel(user.role)} sign-in page instead?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Continue anyway'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Take me there'),
+                ),
+              ],
+            ),
+          );
+          if (!mounted) return;
+          if (goToCorrectPage == true) {
+            Navigator.of(context).pushReplacementNamed(
+              RouteNames.emailAuth,
+              arguments: user.role,
+            );
+            return;
+          }
+        }
         final destination = await AuthService.instance.resolveInitialRoute();
         if (!mounted) return;
         Navigator.of(
