@@ -16,6 +16,7 @@ import '../../features/payment/screens/simulated_payment_screen.dart';
 import '../../features/provider_search/screens/provider_search_results_screen.dart';
 import '../../features/provider_dashboard/screens/earnings_screen.dart';
 import '../../features/provider_dashboard/screens/performance_screen.dart';
+import '../../features/provider_dashboard/screens/provider_location_screen.dart';
 import '../../features/provider_dashboard/screens/provider_dashboard_screen.dart';
 import '../../features/provider_dashboard/screens/provider_skills_screen.dart';
 import '../../features/provider_dashboard/screens/trust_score_screen.dart';
@@ -159,6 +160,10 @@ class AppRouter {
       // Provider search
       case RouteNames.providerSearchResults:
         return _page(const ProviderSearchResultsScreen(), settings);
+
+      // Provider location
+      case RouteNames.providerLocation:
+        return _page(const ProviderLocationScreen(), settings);
 
       default:
         return _page(

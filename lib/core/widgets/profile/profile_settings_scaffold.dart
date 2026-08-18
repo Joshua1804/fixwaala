@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../features/auth/services/auth_service.dart';
+import '../../models/enums.dart';
 import '../../models/user_model.dart';
 import '../../routes/route_names.dart';
 import '../../services/session_teardown.dart';
@@ -136,6 +137,7 @@ class _ProfileSettingsScaffoldState extends State<ProfileSettingsScaffold>
               SettingsTab(
                 notificationsSubtitle: widget.notificationsSubtitle,
                 onSignOut: _handleSignOut,
+                showLocationSetting: user?.role == UserRole.provider,
               ),
             ],
           );

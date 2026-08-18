@@ -69,4 +69,7 @@ class RouteNames {
 
   // Provider search
   static const providerSearchResults = '/search/results';
+
+  // Provider location
+  static const providerLocation = '/provider/location';
 }

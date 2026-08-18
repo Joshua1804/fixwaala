@@ -22,10 +22,14 @@ class SettingsTab extends StatelessWidget {
   /// its own subscriptions before navigating away.
   final Future<void> Function() onSignOut;
 
+  /// Providers only — shows the "Set your location" row.
+  final bool showLocationSetting;
+
   const SettingsTab({
     super.key,
     required this.notificationsSubtitle,
     required this.onSignOut,
+    this.showLocationSetting = false,
   });
 
   Future<void> _confirmSignOut(BuildContext context) async {
@@ -111,6 +115,15 @@ class SettingsTab extends StatelessWidget {
           label: 'Change Password',
           onTap: null,
         ),
+        if (showLocationSetting) ...[
+          const SizedBox(height: 12),
+          ProfileTile(
+            icon: Icons.map_outlined,
+            label: 'Set your location',
+            onTap: () =>
+                Navigator.of(context).pushNamed(RouteNames.providerLocation),
+          ),
+        ],
         const SizedBox(height: 24),
         Text('About', style: AppTextStyles.titleLarge),
         const SizedBox(height: 16),
