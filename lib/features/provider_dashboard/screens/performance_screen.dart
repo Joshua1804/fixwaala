@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -11,8 +12,7 @@ import '../models/analytics_model.dart';
 import '../services/analytics_service.dart';
 
 /// Performance Analytics Screen — weekly job trend, popular service
-/// categories, and peak demand hours. Uses small hand-rolled bar charts so
-/// no chart package dependency is required.
+/// categories, and peak demand hours, rendered with `fl_chart`.
 class PerformanceScreen extends StatelessWidget {
   const PerformanceScreen({super.key});
 
@@ -78,23 +78,24 @@ class PerformanceScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     _ChartCard(
                       title: 'Jobs completed — last 7 days',
-                      child: _BarRow(
-                        values: a.weeklyJobs.map((v) => v.toDouble()).toList(),
-                        labels: _last7DayLabels(),
-                        color: AppColors.primary,
+                      child: _WeeklyTrendChart(
+                        weeklyJobs: a.weeklyJobs,
+                        dayLabels: _last7DayLabels(),
                       ),
                     ),
                     const SizedBox(height: 16),
                     _ChartCard(
                       title: 'Popular service categories',
-                      child: _CategoryBars(
-                        distribution: a.categoryDistribution,
+                      child: _CategoryDistributionChart(
+                        categoryDistribution: a.categoryDistribution,
                       ),
                     ),
                     const SizedBox(height: 16),
                     _ChartCard(
                       title: 'Peak demand hours',
-                      child: _PeakHoursBars(hours: a.peakDemandHours),
+                      child: _PeakHoursChart(
+                        peakDemandHours: a.peakDemandHours,
+                      ),
                     ),
                   ],
                 );
@@ -214,137 +215,198 @@ class _ChartCard extends StatelessWidget {
   }
 }
 
-/// A simple equal-width vertical bar chart.
-class _BarRow extends StatelessWidget {
-  final List<double> values;
-  final List<String> labels;
-  final Color color;
-
-  const _BarRow({
-    required this.values,
-    required this.labels,
-    required this.color,
-  });
+/// Last 7 days of completed-job counts as a line chart.
+class _WeeklyTrendChart extends StatelessWidget {
+  final List<int> weeklyJobs; // 7 entries, oldest first
+  final List<String> dayLabels; // 7 entries, same order as weeklyJobs
+  const _WeeklyTrendChart({required this.weeklyJobs, required this.dayLabels});
 
   @override
   Widget build(BuildContext context) {
-    final maxV = values.fold<double>(1, (m, v) => v > m ? v : m);
+    final maxY = (weeklyJobs.isEmpty
+            ? 1
+            : weeklyJobs.reduce((a, b) => a > b ? a : b))
+        .toDouble()
+        .clamp(1, double.infinity);
     return SizedBox(
-      height: 120,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (var i = 0; i < values.length; i++)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text('${values[i].toInt()}', style: AppTextStyles.caption),
-                    const SizedBox(height: 4),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      height: 70 * (values[i] / maxV).clamp(0.05, 1.0),
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(4),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(labels[i], style: AppTextStyles.caption),
-                  ],
-                ),
+      height: 180,
+      child: LineChart(
+        LineChartData(
+          minY: 0,
+          maxY: maxY + 1,
+          gridData: const FlGridData(show: true, drawVerticalLine: false),
+          titlesData: FlTitlesData(
+            leftTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: true, reservedSize: 28),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  final i = value.toInt();
+                  if (i < 0 || i >= dayLabels.length) {
+                    return const SizedBox.shrink();
+                  }
+                  return Text(dayLabels[i], style: AppTextStyles.caption);
+                },
               ),
             ),
-        ],
+          ),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: [
+                for (var i = 0; i < weeklyJobs.length; i++)
+                  FlSpot(i.toDouble(), weeklyJobs[i].toDouble()),
+              ],
+              isCurved: true,
+              color: AppColors.primary,
+              barWidth: 3,
+              dotData: const FlDotData(show: true),
+              belowBarData: BarAreaData(
+                show: true,
+                color: AppColors.primary.withValues(alpha: 0.1),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _CategoryBars extends StatelessWidget {
-  final Map<String, int> distribution;
-  const _CategoryBars({required this.distribution});
+/// Proportional split of completed jobs across service categories.
+class _CategoryDistributionChart extends StatelessWidget {
+  final Map<String, int> categoryDistribution;
+  const _CategoryDistributionChart({required this.categoryDistribution});
+
+  static const _palette = [
+    AppColors.primary,
+    AppColors.accent,
+    AppColors.info,
+    AppColors.warning,
+    AppColors.secondary,
+  ];
 
   @override
   Widget build(BuildContext context) {
-    if (distribution.isEmpty) return const Text('No category data yet.');
-    final total = distribution.values.fold<int>(0, (a, b) => a + b);
-    final entries = distribution.entries.toList()
+    if (categoryDistribution.isEmpty) {
+      return const Text('No category data yet.');
+    }
+    final entries = categoryDistribution.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
+    final total = entries.fold<int>(0, (sum, e) => sum + e.value);
+    if (total == 0) return const Text('No category data yet.');
+
     return Column(
       children: [
-        for (final e in entries)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 90,
-                  child: Text(e.key, style: AppTextStyles.bodySmall),
-                ),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: total == 0 ? 0 : e.value / total,
-                      minHeight: 10,
-                      backgroundColor: AppColors.divider.withValues(alpha: 0.4),
-                      valueColor: const AlwaysStoppedAnimation(
-                        AppColors.primary,
-                      ),
+        SizedBox(
+          height: 180,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 40,
+              sections: [
+                for (var i = 0; i < entries.length; i++)
+                  PieChartSectionData(
+                    value: entries[i].value.toDouble(),
+                    color: _palette[i % _palette.length],
+                    title: '${(entries[i].value / total * 100).round()}%',
+                    radius: 60,
+                    titleStyle: AppTextStyles.bodySmall.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text('${e.value}', style: AppTextStyles.bodySmall),
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 16,
+          runSpacing: 8,
+          children: [
+            for (var i = 0; i < entries.length; i++)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: _palette[i % _palette.length],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(entries[i].key, style: AppTextStyles.bodySmall),
+                ],
+              ),
+          ],
+        ),
       ],
     );
   }
 }
 
-class _PeakHoursBars extends StatelessWidget {
-  final Map<int, int> hours;
-  const _PeakHoursBars({required this.hours});
+/// Job count by hour of day (0-23).
+class _PeakHoursChart extends StatelessWidget {
+  final Map<int, int> peakDemandHours;
+  const _PeakHoursChart({required this.peakDemandHours});
 
   @override
   Widget build(BuildContext context) {
-    if (hours.isEmpty) return const Text('No demand data yet.');
-    final maxV = hours.values.fold<int>(1, (m, v) => v > m ? v : m);
-    final sortedHours = hours.keys.toList()..sort();
+    if (peakDemandHours.isEmpty) return const Text('No demand data yet.');
+    final maxY = (peakDemandHours.values.isEmpty
+            ? 1
+            : peakDemandHours.values.reduce((a, b) => a > b ? a : b))
+        .toDouble()
+        .clamp(1, double.infinity);
     return SizedBox(
-      height: 100,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            for (final h in sortedHours)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Container(
-                      width: 18,
-                      height: 60 * (hours[h]! / maxV).clamp(0.1, 1.0),
-                      decoration: BoxDecoration(
-                        color: AppColors.accent,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(4),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text('$h:00', style: AppTextStyles.caption),
-                  ],
-                ),
+      height: 180,
+      child: BarChart(
+        BarChartData(
+          maxY: maxY + 1,
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            leftTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: true, reservedSize: 28),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: 4,
+                getTitlesWidget: (value, meta) =>
+                    Text('${value.toInt()}h', style: AppTextStyles.caption),
+              ),
+            ),
+          ),
+          barGroups: [
+            for (var hour = 0; hour < 24; hour++)
+              BarChartGroupData(
+                x: hour,
+                barRods: [
+                  BarChartRodData(
+                    toY: (peakDemandHours[hour] ?? 0).toDouble(),
+                    color: AppColors.accent,
+                    width: 6,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ],
               ),
           ],
         ),
