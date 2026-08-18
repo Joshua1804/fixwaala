@@ -34,10 +34,10 @@ void main() {
   }
 
   group('TicketService radius/window updates', () {
-    test('a new ticket starts at the first 5 km tier', () async {
+    test('a new ticket starts at the initial 2 km tier', () async {
       final id = await createDemoTicket();
       final ticket = await TicketService.instance.watchTicket(id).first;
-      expect(ticket.broadcastRadiusKm, 5);
+      expect(ticket.broadcastRadiusKm, 2);
       expect(ticket.status, TicketStatus.matching);
     });
 
