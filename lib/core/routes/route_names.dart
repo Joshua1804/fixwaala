@@ -66,4 +66,7 @@ class RouteNames {
 
   // Notifications (admin announcements)
   static const notifications = '/notifications';
+
+  // Provider search
+  static const providerSearchResults = '/search/results';
 }

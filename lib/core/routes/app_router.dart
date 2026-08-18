@@ -13,6 +13,7 @@ import '../../features/customer_ticket/screens/ticket_review_screen.dart';
 import '../../features/geo_broadcast/screens/matching_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/payment/screens/simulated_payment_screen.dart';
+import '../../features/provider_search/screens/provider_search_results_screen.dart';
 import '../../features/provider_dashboard/screens/earnings_screen.dart';
 import '../../features/provider_dashboard/screens/performance_screen.dart';
 import '../../features/provider_dashboard/screens/provider_dashboard_screen.dart';
@@ -154,6 +155,10 @@ class AppRouter {
       // Notifications
       case RouteNames.notifications:
         return _page(const NotificationsScreen(), settings);
+
+      // Provider search
+      case RouteNames.providerSearchResults:
+        return _page(const ProviderSearchResultsScreen(), settings);
 
       default:
         return _page(
