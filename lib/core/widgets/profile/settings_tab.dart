@@ -109,6 +109,13 @@ class SettingsTab extends StatelessWidget {
         const SizedBox(height: 24),
         Text('Account', style: AppTextStyles.titleLarge),
         const SizedBox(height: 16),
+        ProfileTile(
+          icon: Icons.alternate_email_rounded,
+          label: 'Change Email',
+          onTap: () =>
+              Navigator.of(context).pushNamed(RouteNames.changeEmail),
+        ),
+        const SizedBox(height: 8),
         // TODO(phase-8): re-auth + updatePassword flow.
         const ProfileTile(
           icon: Icons.lock_outline_rounded,

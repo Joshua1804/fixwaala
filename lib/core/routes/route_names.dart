@@ -72,4 +72,6 @@ class RouteNames {
 
   // Provider location
   static const providerLocation = '/provider/location';
+
+  static const changeEmail = '/auth/change-email';
 }
