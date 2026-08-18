@@ -17,6 +17,7 @@ import '../widgets/job_status_ui.dart';
 import '../../../core/widgets/remote_image.dart';
 import '../../../core/widgets/missing_route_argument_screen.dart';
 import '../../../core/widgets/contact_party_button.dart';
+import '../../../core/widgets/mid_job_checkpoint.dart';
 
 /// Provider's Job Details Screen — full context on a single job plus a
 /// link into the Status Update Screen for the next lifecycle action.
@@ -47,6 +48,12 @@ class JobDetailsScreen extends StatelessWidget {
             return const LoadingWidget(label: 'Loading job...');
           }
           final job = snapshot.data!;
+          MidJobCheckpoint.maybeShow(
+            context,
+            jobId: job.jobId,
+            status: job.status,
+            otherPartyId: job.customerId,
+          );
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
