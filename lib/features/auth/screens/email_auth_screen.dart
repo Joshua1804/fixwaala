@@ -238,9 +238,7 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Password is required';
-                    if (_isRegister && v.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
+                    if (_isRegister) return Validators.newPassword(v);
                     return null;
                   },
                 ),

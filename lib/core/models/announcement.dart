@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 
+import 'enums.dart';
+
 enum AnnouncementPriority { info, warning, critical }
 
 enum AnnouncementAudience { all, customer, provider }
@@ -37,11 +39,13 @@ class Announcement {
     title: map['title'] as String? ?? '',
     body: map['body'] as String? ?? '',
     active: map['active'] as bool? ?? false,
-    priority: AnnouncementPriority.values.byName(
-      map['priority'] as String? ?? 'info',
+    priority: AnnouncementPriority.values.byNameOrDefault(
+      map['priority'] as String?,
+      AnnouncementPriority.info,
     ),
-    audience: AnnouncementAudience.values.byName(
-      map['audience'] as String? ?? 'all',
+    audience: AnnouncementAudience.values.byNameOrDefault(
+      map['audience'] as String?,
+      AnnouncementAudience.all,
     ),
     createdAt: _dateFrom(map['createdAt']),
     updatedAt: map['updatedAt'] == null ? null : _dateFrom(map['updatedAt']),

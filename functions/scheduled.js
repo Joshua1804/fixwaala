@@ -41,43 +41,116 @@ exports.expandBroadcastRadius = onSchedule("every 1 minutes", async () => {
 
   const batch = db().batch();
   let touched = 0;
+  let failed = 0;
 
+  // Each ticket is handled independently so one malformed document can't
+  // abort the batch before it's built — the other 199 stalled tickets
+  // still get their radius advanced this run.
   for (const doc of stalled.docs) {
-    const ticket = doc.data();
-    const currentRadius = ticket.broadcastRadiusKm ?? SEARCH_RADII_KM[0];
-    const tier = SEARCH_RADII_KM.indexOf(currentRadius);
-    const next = tier + 1;
+    try {
+      const ticket = doc.data();
+      const currentRadius = ticket.broadcastRadiusKm ?? SEARCH_RADII_KM[0];
+      const tier = SEARCH_RADII_KM.indexOf(currentRadius);
+      const next = tier + 1;
 
-    if (next >= SEARCH_RADII_KM.length) {
-      // Every tier tried, nobody accepted.
-      batch.update(doc.ref, {
-        status: "failed",
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-      batch.delete(db().collection("openTickets").doc(doc.id));
-    } else {
-      const radius = SEARCH_RADII_KM[next];
-      batch.update(doc.ref, {
-        broadcastRadiusKm: radius,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-      // Keep the provider-facing projection in step.
-      batch.update(db().collection("openTickets").doc(doc.id), {
-        broadcastRadiusKm: radius,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+      if (next >= SEARCH_RADII_KM.length) {
+        // Every tier tried, nobody accepted.
+        batch.update(doc.ref, {
+          status: "failed",
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        batch.delete(db().collection("openTickets").doc(doc.id));
+      } else {
+        const radius = SEARCH_RADII_KM[next];
+        batch.update(doc.ref, {
+          broadcastRadiusKm: radius,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        // Keep the provider-facing projection in step.
+        batch.update(db().collection("openTickets").doc(doc.id), {
+          broadcastRadiusKm: radius,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      touched += 1;
+    } catch (err) {
+      failed += 1;
+      console.error(`Failed to process stalled ticket ${doc.id}:`, err);
     }
-    touched += 1;
   }
 
-  await batch.commit();
-  console.log(`Advanced ${touched} stalled ticket(s).`);
+  try {
+    await batch.commit();
+    console.log(`Advanced ${touched} stalled ticket(s), ${failed} failed.`);
+  } catch (err) {
+    console.error("expandBroadcastRadius: batch commit failed:", err);
+    throw err;
+  }
 });
 
 /**
  * Expires candidate leases whose review window has passed and returns the
  * ticket to matching so broadcasting resumes.
  */
+/**
+ * Expires the pending candidate leases on one stalled ticket and republishes
+ * the broadcast projection. Isolated per-ticket so `Promise.allSettled` can
+ * run every stalled ticket concurrently instead of one at a time, and so one
+ * ticket's failure doesn't stop the others in the same run from being
+ * processed.
+ */
+async function expireLeasesForTicket(doc) {
+  const candidates = await doc.ref
+    .collection("candidates")
+    .where("status", "==", "pending")
+    .get();
+
+  const batch = db().batch();
+  for (const candidate of candidates.docs) {
+    batch.update(candidate.ref, { status: "expired" });
+  }
+  batch.update(doc.ref, {
+    status: "matching",
+    candidateWindowExpiresAt: FieldValue.delete(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  await batch.commit();
+
+  // Republish the redacted projection so providers can find it again.
+  //
+  // Keep this shape in sync with `Ticket.toBroadcastMap()` in
+  // lib/features/customer_ticket/models/ticket_model.dart — that's the
+  // client's writer for the same `openTickets/{id}` document, and the two
+  // are maintained independently in two different languages. A field added
+  // to one and not the other silently drifts.
+  const ticket = doc.data();
+  await db()
+    .collection("openTickets")
+    .doc(doc.id)
+    .set(
+      {
+        id: doc.id,
+        customerId: ticket.customerId,
+        customerFirstName: ticket.customerFirstName ?? "",
+        description: ticket.description ?? "",
+        imageUrls: ticket.imageUrls ?? [],
+        category: ticket.category,
+        complexity: ticket.complexity,
+        approximateLocation: ticket.approximateLocation,
+        status: "matching",
+        createdAt: ticket.createdAt,
+        updatedAt: FieldValue.serverTimestamp(),
+        clarifyingQa: ticket.clarifyingQa ?? [],
+        recommendedEquipment: ticket.recommendedEquipment ?? [],
+        broadcastRadiusKm: ticket.broadcastRadiusKm ?? SEARCH_RADII_KM[0],
+        ...(ticket.aiSummary ? { aiSummary: ticket.aiSummary } : {}),
+      },
+      { merge: true }
+    );
+
+  console.log(`Expired ${candidates.size} lease(s) on ticket ${doc.id}.`);
+}
+
 exports.expireCandidateLeases = onSchedule("every 1 minutes", async () => {
   const now = new Date();
 
@@ -90,48 +163,15 @@ exports.expireCandidateLeases = onSchedule("every 1 minutes", async () => {
 
   if (waiting.empty) return;
 
-  for (const doc of waiting.docs) {
-    const candidates = await doc.ref
-      .collection("candidates")
-      .where("status", "==", "pending")
-      .get();
+  const results = await Promise.allSettled(
+    waiting.docs.map((doc) => expireLeasesForTicket(doc))
+  );
 
-    const batch = db().batch();
-    for (const candidate of candidates.docs) {
-      batch.update(candidate.ref, { status: "expired" });
-    }
-    batch.update(doc.ref, {
-      status: "matching",
-      candidateWindowExpiresAt: FieldValue.delete(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
-
-    // Republish the redacted projection so providers can find it again.
-    const ticket = doc.data();
-    await db()
-      .collection("openTickets")
-      .doc(doc.id)
-      .set(
-        {
-          id: doc.id,
-          customerId: ticket.customerId,
-          description: ticket.description ?? "",
-          imageUrls: ticket.imageUrls ?? [],
-          category: ticket.category,
-          complexity: ticket.complexity,
-          approximateLocation: ticket.approximateLocation,
-          status: "matching",
-          createdAt: ticket.createdAt,
-          updatedAt: FieldValue.serverTimestamp(),
-          clarifyingQa: ticket.clarifyingQa ?? [],
-          recommendedEquipment: ticket.recommendedEquipment ?? [],
-          broadcastRadiusKm: ticket.broadcastRadiusKm ?? SEARCH_RADII_KM[0],
-          ...(ticket.aiSummary ? { aiSummary: ticket.aiSummary } : {}),
-        },
-        { merge: true }
-      );
-
-    console.log(`Expired ${candidates.size} lease(s) on ticket ${doc.id}.`);
-  }
+  const failures = results.filter((r) => r.status === "rejected");
+  failures.forEach((r) =>
+    console.error("expireCandidateLeases: failed for a ticket:", r.reason)
+  );
+  console.log(
+    `Processed ${waiting.size} stalled ticket(s), ${failures.length} failed.`
+  );
 });

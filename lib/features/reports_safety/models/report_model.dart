@@ -63,10 +63,14 @@ class Report {
     reason: map['reason'] as String? ?? '',
     description: map['description'] as String? ?? '',
     evidenceUrls: List<String>.from(map['evidenceUrls'] ?? const []),
-    severity: ReportSeverity.values.byName(
-      map['severity'] as String? ?? 'medium',
+    severity: ReportSeverity.values.byNameOrDefault(
+      map['severity'] as String?,
+      ReportSeverity.medium,
     ),
-    status: ReportStatus.values.byName(map['status'] as String? ?? 'open'),
+    status: ReportStatus.values.byNameOrDefault(
+      map['status'] as String?,
+      ReportStatus.open,
+    ),
     adminNote: map['adminNote'] as String?,
     resolvedByAdminId: map['resolvedByAdminId'] as String?,
     createdAt: _dateFrom(map['createdAt']),
