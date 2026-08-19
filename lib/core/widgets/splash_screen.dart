@@ -137,6 +137,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Container(
                         width: 100,
                         height: 100,
+                        padding: const EdgeInsets.all(22),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
@@ -145,10 +146,8 @@ class _SplashScreenState extends State<SplashScreen>
                             width: 1.5,
                           ),
                         ),
-                        child: const Icon(
-                          Icons.handyman_rounded,
-                          size: 48,
-                          color: Colors.white,
+                        child: Image.asset(
+                          'assets/icon/app_icon_foreground.png',
                         ),
                       ),
                     ),
