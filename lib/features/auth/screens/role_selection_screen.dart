@@ -136,6 +136,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                           Container(
                             width: 56,
                             height: 56,
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(16),
@@ -143,10 +144,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                                 color: Colors.white.withValues(alpha: 0.2),
                               ),
                             ),
-                            child: const Icon(
-                              Icons.handyman_rounded,
-                              color: Colors.white,
-                              size: 28,
+                            child: Image.asset(
+                              'assets/icon/app_icon_foreground.png',
                             ),
                           ),
                           const SizedBox(height: 24),

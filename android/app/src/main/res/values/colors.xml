@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the darkest stop of the gradient in
+         lib/core/widgets/splash_screen.dart, so the native launch window
+         (shown while the process boots and main() awaits Firebase/service
+         init, before Flutter's first frame paints) blends straight into the
+         Dart splash screen instead of showing a plain white flash first. -->
+    <color name="launch_background">#FF07130D</color>
+</resources>
