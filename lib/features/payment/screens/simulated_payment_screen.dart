@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/routes/route_names.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
@@ -132,7 +133,7 @@ class _SimulatedPaymentScreenState extends State<SimulatedPaymentScreen> {
               );
             case _Stage.review:
               return Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(AppSpacing.screenHPad),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -168,7 +169,7 @@ class _SimulatedPaymentScreenState extends State<SimulatedPaymentScreen> {
                     const Text(
                       'Simulated payment — no real money is moved.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12),
+                      style: AppTextStyles.caption,
                     ),
                   ],
                 ),
@@ -199,7 +200,7 @@ class _ResultView extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = success ? AppColors.success : AppColors.error;
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(AppSpacing.screenHPad),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

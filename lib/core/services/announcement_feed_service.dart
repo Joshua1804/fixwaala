@@ -41,6 +41,7 @@ class AnnouncementFeedService {
     return FirebaseService.instance.firestore
         .collection('announcements')
         .orderBy('createdAt', descending: true)
+        .limit(100)
         .snapshots()
         .map(
           (snap) => visibleAnnouncements(

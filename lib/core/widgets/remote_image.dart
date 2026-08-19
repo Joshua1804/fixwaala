@@ -1,14 +1,17 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
 
-/// A network image that degrades gracefully.
+/// A network image that degrades gracefully and caches to disk.
 ///
 /// Bare `Image.network` has no `errorBuilder`, so a dead or expired Cloudinary
 /// URL renders a red framework exception box in the middle of a list. It also
 /// has no `cacheWidth`, so a 4 MP photo is decoded at full resolution to fill a
-/// 72 px thumbnail.
+/// 72 px thumbnail. And it has no disk cache, so the same avatar is
+/// re-downloaded from Cloudinary on every cold app start — [CachedNetworkImage]
+/// keeps a disk-backed copy so a repeat view is instant and offline-tolerant.
 class RemoteImage extends StatelessWidget {
   final String? url;
   final double? width;
@@ -46,17 +49,14 @@ class RemoteImage extends StatelessWidget {
 
     return _frame(
       radius,
-      Image.network(
-        url!,
+      CachedNetworkImage(
+        imageUrl: url!,
         width: width,
         height: height,
         fit: fit,
-        cacheWidth: decodeWidth,
-        errorBuilder: (_, _, _) => const _RemoteImageFallback(),
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return const _RemoteImagePlaceholder();
-        },
+        memCacheWidth: decodeWidth,
+        errorWidget: (_, _, _) => const _RemoteImageFallback(),
+        placeholder: (_, _) => const _RemoteImagePlaceholder(),
       ),
     );
   }

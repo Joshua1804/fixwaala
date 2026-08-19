@@ -178,11 +178,13 @@ class Ticket {
           '',
       description: map['description'] as String? ?? '',
       imageUrls: List<String>.from(map['imageUrls'] ?? []),
-      category: ServiceCategory.values.byName(
-        map['category'] as String? ?? 'unknown',
+      category: ServiceCategory.values.byNameOrDefault(
+        map['category'] as String?,
+        ServiceCategory.unknown,
       ),
-      complexity: ProblemComplexity.values.byName(
-        map['complexity'] as String? ?? 'low',
+      complexity: ProblemComplexity.values.byNameOrDefault(
+        map['complexity'] as String?,
+        ProblemComplexity.low,
       ),
       approximateLocation: approxLoc is fs.GeoPoint
           ? GeoPoint(approxLoc.latitude, approxLoc.longitude)
@@ -191,7 +193,10 @@ class Ticket {
           ? GeoPoint(exactLoc.latitude, exactLoc.longitude)
           : null,
       addressLine: map['addressLine'] as String?,
-      status: TicketStatus.values.byName(map['status'] as String? ?? 'draft'),
+      status: TicketStatus.values.byNameOrDefault(
+        map['status'] as String?,
+        TicketStatus.draft,
+      ),
       assignedProviderId: map['assignedProviderId'] as String?,
       createdAt: map['createdAt'] is fs.Timestamp
           ? (map['createdAt'] as fs.Timestamp).toDate()

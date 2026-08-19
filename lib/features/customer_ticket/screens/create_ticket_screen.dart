@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/routes/route_names.dart';
 import '../../../core/services/cloudinary_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/models/enums.dart';
 
@@ -132,7 +133,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Describe the issue')),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.screenHPad),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

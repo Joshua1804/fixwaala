@@ -1146,10 +1146,8 @@ class _TicketCard extends StatelessWidget {
                         CancelRequestAction.run(context, ticketId: ticket.id),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.error,
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(0, 0),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: const Size(44, 44),
                     ),
                     child: Text('Cancel', style: AppTextStyles.caption),
                   ),

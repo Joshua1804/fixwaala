@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/missing_route_argument_screen.dart';
 import '../../features/ai_assist/screens/ai_assist_screen.dart';
 import '../../features/auth/screens/change_email_screen.dart';
 import '../../features/auth/screens/customer_onboarding_screen.dart';
@@ -171,9 +172,7 @@ class AppRouter {
 
       default:
         return _page(
-          Scaffold(
-            body: Center(child: Text('Unknown route: ${settings.name}')),
-          ),
+          const MissingRouteArgumentScreen(title: 'Not found'),
           settings,
         );
     }

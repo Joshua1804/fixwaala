@@ -148,6 +148,7 @@ class TicketService {
       final snap = await _col
           .where('customerId', isEqualTo: customerId)
           .orderBy('createdAt', descending: true)
+          .limit(200)
           .get();
       return snap.docs.map((d) => Ticket.fromMap(d.data())).toList();
     } else {
@@ -176,6 +177,7 @@ class TicketService {
       return _col
           .where('customerId', isEqualTo: customerId)
           .orderBy('createdAt', descending: true)
+          .limit(200)
           .snapshots()
           .map(
             (snap) => snap.docs.map((d) => Ticket.fromMap(d.data())).toList(),
@@ -215,8 +217,12 @@ class TicketService {
           whereIn: categories.map((c) => c.name).toList(),
         );
       }
+      // Bounded so a nationwide burst of new tickets can't hand every
+      // matching provider an ever-growing live listener; the client still
+      // filters the page down to what's actually in radius.
       return query
           .orderBy('createdAt', descending: true)
+          .limit(300)
           .snapshots()
           .map(
             (snap) => snap.docs.map((d) => Ticket.fromMap(d.data())).toList(),

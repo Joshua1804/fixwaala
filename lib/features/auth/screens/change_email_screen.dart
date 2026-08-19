@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/custom_button.dart';
@@ -46,7 +47,7 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Change email')),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.screenHPad),
         child: _sent ? _buildSentState() : _buildForm(),
       ),
     );
