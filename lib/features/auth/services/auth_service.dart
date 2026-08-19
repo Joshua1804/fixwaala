@@ -292,7 +292,11 @@ class AuthService {
   /// result, so "Profile updated successfully" was shown for a write that
   /// never happened. Callers must await this and only report success once it
   /// completes.
-  Future<AppUser> updateProfile({String? name, String? phone}) async {
+  Future<AppUser> updateProfile({
+    String? name,
+    String? phone,
+    String? photoUrl,
+  }) async {
     final current = _currentUser;
     if (current == null) {
       throw AuthException('no-current-user', 'You must be signed in.');
@@ -304,6 +308,7 @@ class AuthService {
     final updated = current.copyWith(
       name: trimmedName,
       phone: trimmedPhone,
+      photoUrl: photoUrl,
       updatedAt: DateTime.now(),
     );
     _currentUser = updated;
@@ -320,9 +325,72 @@ class AuthService {
         .update({
           'name': ?trimmedName,
           'phone': ?trimmedPhone,
+          'photoUrl': ?photoUrl,
           'updatedAt': DateTime.now().toIso8601String(),
         });
     return updated;
+  }
+
+  // ── Email change ────────────────────────────────────────────────
+
+  /// Changes the signed-in user's email. Requires re-entering the current
+  /// password (Firebase requires recent re-authentication before an email
+  /// change; simulation mode mirrors that requirement for consistency).
+  ///
+  /// Live mode sends a verification link to [newEmail] and does **not**
+  /// flip `users/{uid}.email` yet — Firebase only updates its own record
+  /// once the link is clicked, and this app has no server-side listener for
+  /// that. `login()` already reconciles `emailVerified` lazily against
+  /// Firebase's live value on next sign-in; the same reconciliation needs to
+  /// cover `email` once this ships (tracked as follow-up, not blocking this
+  /// change — see docs/superpowers/specs/2026-08-18-punch-list-design.md).
+  Future<void> changeEmail({
+    required String currentPassword,
+    required String newEmail,
+  }) async {
+    final trimmedEmail = newEmail.trim().toLowerCase();
+    final current = _currentUser;
+    if (current == null) {
+      throw AuthException('no-current-user', 'You must be signed in.');
+    }
+
+    if (!_live) {
+      if (_passwords[current.id] != currentPassword) {
+        throw AuthException('wrong-password', 'Incorrect password.');
+      }
+      final withNewEmail = AppUser(
+        id: current.id,
+        email: trimmedEmail,
+        role: current.role,
+        createdAt: current.createdAt,
+        phone: current.phone,
+        name: current.name,
+        photoUrl: current.photoUrl,
+        emailVerified: current.emailVerified,
+        onboardingComplete: current.onboardingComplete,
+        accountStatus: current.accountStatus,
+        isVerified: current.isVerified,
+        customerProfile: current.customerProfile,
+        providerProfile: current.providerProfile,
+        updatedAt: DateTime.now(),
+      );
+      _userDb[withNewEmail.id] = withNewEmail;
+      _currentUser = withNewEmail;
+      _userChanges.add(withNewEmail);
+      return;
+    }
+
+    final auth = FirebaseService.instance.auth;
+    final fUser = auth.currentUser;
+    if (fUser == null) {
+      throw AuthException('no-current-user', 'You must be signed in.');
+    }
+    final credential = fb_auth.EmailAuthProvider.credential(
+      email: current.email,
+      password: currentPassword,
+    );
+    await fUser.reauthenticateWithCredential(credential);
+    await fUser.verifyBeforeUpdateEmail(trimmedEmail);
   }
 
   // ── Provider presence ────────────────────────────────────────────

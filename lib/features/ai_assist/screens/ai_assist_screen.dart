@@ -285,7 +285,7 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
   }
 
   Widget _buildResultStep() {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -345,7 +345,7 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
                   .toList(),
             ),
           ],
-          const Spacer(),
+          const SizedBox(height: 32),
           PrimaryButton(label: 'Confirm', onPressed: _confirm),
         ],
       ),

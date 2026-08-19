@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../models/user_model.dart';
+import '../../services/cloudinary_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../utils/error_messages.dart';
 import '../custom_button.dart';
+import '../remote_image.dart';
 
 /// The "Profile" half of the profile screen: avatar header, editable name and
 /// phone, then role-specific navigation tiles.
@@ -34,8 +39,11 @@ class ProfileTab extends StatefulWidget {
   final List<Widget> tiles;
 
   /// Persists the edit. Returns normally on success; throwing surfaces the
-  /// message inline instead of claiming the save worked.
-  final Future<void> Function(String name, String phone) onSave;
+  /// message inline instead of claiming the save worked. [photoUrl] is only
+  /// non-null when called from the avatar picker; the name/phone save button
+  /// always passes `null` (no photo change intended).
+  final Future<void> Function(String name, String phone, String? photoUrl)
+  onSave;
 
   const ProfileTab({
     super.key,
@@ -55,6 +63,7 @@ class ProfileTab extends StatefulWidget {
 class _ProfileTabState extends State<ProfileTab> {
   bool _isEditing = false;
   bool _isSaving = false;
+  bool _uploadingPhoto = false;
   String? _error;
 
   Future<void> _handleSave() async {
@@ -70,6 +79,7 @@ class _ProfileTabState extends State<ProfileTab> {
       await widget.onSave(
         widget.nameController.text.trim(),
         widget.phoneController.text.trim(),
+        null,
       );
       if (!mounted) return;
       setState(() {
@@ -89,6 +99,42 @@ class _ProfileTabState extends State<ProfileTab> {
         _isSaving = false;
         _error = ErrorMessages.friendly(error);
       });
+    }
+  }
+
+  Future<void> _pickAndUploadPhoto() async {
+    final user = widget.user;
+    if (user == null || _uploadingPhoto) return;
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    setState(() => _uploadingPhoto = true);
+    final url = await CloudinaryService.instance.uploadImage(
+      File(picked.path),
+    );
+    if (!mounted) return;
+
+    if (url == null) {
+      setState(() => _uploadingPhoto = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not upload photo. Try again.')),
+      );
+      return;
+    }
+
+    try {
+      await widget.onSave(user.name ?? '', user.phone ?? '', url);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(ErrorMessages.friendly(error))));
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
     }
   }
 
@@ -115,17 +161,45 @@ class _ProfileTabState extends State<ProfileTab> {
         Center(
           child: Column(
             children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  size: 36,
-                  color: AppColors.primary,
+              GestureDetector(
+                onTap: _uploadingPhoto ? null : _pickAndUploadPhoto,
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: user?.photoUrl != null
+                          ? RemoteImage(url: user!.photoUrl!, fit: BoxFit.cover)
+                          : const Icon(
+                              Icons.person_rounded,
+                              size: 36,
+                              color: AppColors.primary,
+                            ),
+                    ),
+                    if (_uploadingPhoto)
+                      const Positioned.fill(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: 12),

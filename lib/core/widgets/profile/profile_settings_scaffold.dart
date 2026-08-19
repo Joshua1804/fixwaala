@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../features/auth/services/auth_service.dart';
+import '../../models/enums.dart';
 import '../../models/user_model.dart';
 import '../../routes/route_names.dart';
 import '../../services/session_teardown.dart';
@@ -126,16 +127,18 @@ class _ProfileSettingsScaffoldState extends State<ProfileSettingsScaffold>
                 fallbackName: widget.fallbackName,
                 badge: widget.badgeBuilder?.call(user),
                 tiles: widget.tilesBuilder(context, user),
-                onSave: (name, phone) async {
+                onSave: (name, phone, photoUrl) async {
                   await AuthService.instance.updateProfile(
                     name: name,
                     phone: phone,
+                    photoUrl: photoUrl,
                   );
                 },
               ),
               SettingsTab(
                 notificationsSubtitle: widget.notificationsSubtitle,
                 onSignOut: _handleSignOut,
+                showLocationSetting: user?.role == UserRole.provider,
               ),
             ],
           );

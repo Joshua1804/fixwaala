@@ -18,6 +18,7 @@ import '../services/job_service.dart';
 import '../widgets/job_status_ui.dart';
 import '../widgets/live_tracking_map.dart';
 import '../../../core/widgets/contact_party_button.dart';
+import '../../../core/widgets/mid_job_checkpoint.dart';
 
 /// Central live-status hub for the customer's confirmed job.
 ///
@@ -114,6 +115,13 @@ class _JobTrackingContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    MidJobCheckpoint.maybeShow(
+      context,
+      jobId: job.jobId,
+      status: job.status,
+      otherPartyId: job.providerId,
+    );
+
     const trackableStatuses = {
       JobStatus.accepted,
       JobStatus.enRoute,

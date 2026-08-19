@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/ai_assist/screens/ai_assist_screen.dart';
+import '../../features/auth/screens/change_email_screen.dart';
 import '../../features/auth/screens/customer_onboarding_screen.dart';
 import '../../features/auth/screens/email_auth_screen.dart';
 import '../../features/auth/screens/email_verification_screen.dart';
@@ -11,9 +12,12 @@ import '../../features/customer_ticket/screens/create_ticket_screen.dart';
 import '../../features/customer_ticket/screens/my_tickets_screen.dart';
 import '../../features/customer_ticket/screens/ticket_review_screen.dart';
 import '../../features/geo_broadcast/screens/matching_screen.dart';
+import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/payment/screens/simulated_payment_screen.dart';
+import '../../features/provider_search/screens/provider_search_results_screen.dart';
 import '../../features/provider_dashboard/screens/earnings_screen.dart';
 import '../../features/provider_dashboard/screens/performance_screen.dart';
+import '../../features/provider_dashboard/screens/provider_location_screen.dart';
 import '../../features/provider_dashboard/screens/provider_dashboard_screen.dart';
 import '../../features/provider_dashboard/screens/provider_skills_screen.dart';
 import '../../features/provider_dashboard/screens/trust_score_screen.dart';
@@ -149,6 +153,21 @@ class AppRouter {
         return _page(const ReportScreen(), settings);
       case RouteNames.sos:
         return _page(const SosScreen(), settings);
+
+      // Notifications
+      case RouteNames.notifications:
+        return _page(const NotificationsScreen(), settings);
+
+      // Provider search
+      case RouteNames.providerSearchResults:
+        return _page(const ProviderSearchResultsScreen(), settings);
+
+      // Provider location
+      case RouteNames.providerLocation:
+        return _page(const ProviderLocationScreen(), settings);
+
+      case RouteNames.changeEmail:
+        return _page(const ChangeEmailScreen(), settings);
 
       default:
         return _page(

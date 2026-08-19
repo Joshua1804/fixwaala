@@ -42,6 +42,13 @@ class ProviderProfile {
   final GeoPoint? liveLocation;
   final DateTime? locationUpdatedAt;
 
+  /// Manually set by the provider in Settings — a fixed base/service-area
+  /// pin, distinct from [liveLocation] (auto-updated by the GPS stream while
+  /// online, used for live job matching/tracking). Never overwritten by the
+  /// GPS watcher.
+  final GeoPoint? baseLocation;
+  final String? baseAddress;
+
   const ProviderProfile({
     this.skills = const [],
     this.experienceYears,
@@ -50,11 +57,14 @@ class ProviderProfile {
     this.online = false,
     this.liveLocation,
     this.locationUpdatedAt,
+    this.baseLocation,
+    this.baseAddress,
   });
 
   factory ProviderProfile.fromMap(Map<String, dynamic> map) {
     final liveLoc = map['liveLocation'];
     final locationUpdatedAt = map['locationUpdatedAt'];
+    final baseLoc = map['baseLocation'];
     return ProviderProfile(
       skills: (map['skills'] as List<dynamic>? ?? [])
           .map((s) => ServiceCategory.values.byName(s as String))
@@ -69,6 +79,10 @@ class ProviderProfile {
       locationUpdatedAt: locationUpdatedAt is fs.Timestamp
           ? locationUpdatedAt.toDate()
           : null,
+      baseLocation: baseLoc is fs.GeoPoint
+          ? GeoPoint(baseLoc.latitude, baseLoc.longitude)
+          : null,
+      baseAddress: map['baseAddress'] as String?,
     );
   }
 
@@ -85,6 +99,12 @@ class ProviderProfile {
       ),
     if (locationUpdatedAt != null)
       'locationUpdatedAt': fs.Timestamp.fromDate(locationUpdatedAt!),
+    if (baseLocation != null)
+      'baseLocation': fs.GeoPoint(
+        baseLocation!.latitude,
+        baseLocation!.longitude,
+      ),
+    if (baseAddress != null) 'baseAddress': baseAddress,
   };
 
   ProviderProfile copyWith({
@@ -95,6 +115,8 @@ class ProviderProfile {
     bool? online,
     GeoPoint? liveLocation,
     DateTime? locationUpdatedAt,
+    GeoPoint? baseLocation,
+    String? baseAddress,
   }) {
     return ProviderProfile(
       skills: skills ?? this.skills,
@@ -104,6 +126,8 @@ class ProviderProfile {
       online: online ?? this.online,
       liveLocation: liveLocation ?? this.liveLocation,
       locationUpdatedAt: locationUpdatedAt ?? this.locationUpdatedAt,
+      baseLocation: baseLocation ?? this.baseLocation,
+      baseAddress: baseAddress ?? this.baseAddress,
     );
   }
 }
@@ -116,6 +140,7 @@ class AppUser {
   final String? phone;
   final UserRole role;
   final String? name;
+  final String? photoUrl;
   final bool emailVerified;
   final bool onboardingComplete;
   final AccountStatus accountStatus;
@@ -138,6 +163,7 @@ class AppUser {
     required this.createdAt,
     this.phone,
     this.name,
+    this.photoUrl,
     this.emailVerified = false,
     this.onboardingComplete = false,
     this.accountStatus = AccountStatus.active,
@@ -154,6 +180,7 @@ class AppUser {
       phone: map['phone'] as String?,
       role: UserRole.values.byName(map['role'] as String),
       name: map['name'] as String?,
+      photoUrl: map['photoUrl'] as String?,
       emailVerified: map['emailVerified'] as bool? ?? false,
       onboardingComplete: map['onboardingComplete'] as bool? ?? false,
       accountStatus: AccountStatus.values.byName(
@@ -185,6 +212,7 @@ class AppUser {
     'phone': phone,
     'role': role.name,
     'name': name,
+    'photoUrl': photoUrl,
     'emailVerified': emailVerified,
     'onboardingComplete': onboardingComplete,
     'accountStatus': accountStatus.name,
@@ -199,6 +227,7 @@ class AppUser {
   AppUser copyWith({
     String? phone,
     String? name,
+    String? photoUrl,
     bool? emailVerified,
     bool? onboardingComplete,
     AccountStatus? accountStatus,
@@ -214,6 +243,7 @@ class AppUser {
       createdAt: createdAt,
       phone: phone ?? this.phone,
       name: name ?? this.name,
+      photoUrl: photoUrl ?? this.photoUrl,
       emailVerified: emailVerified ?? this.emailVerified,
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
       accountStatus: accountStatus ?? this.accountStatus,

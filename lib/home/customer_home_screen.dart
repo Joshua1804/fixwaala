@@ -18,6 +18,7 @@ import '../features/service_lifecycle/services/job_service.dart';
 import '../features/service_lifecycle/widgets/job_status_ui.dart';
 import '../core/widgets/empty_state_widget.dart';
 import '../core/widgets/floating_nav_bar.dart';
+import '../core/widgets/remote_image.dart';
 import '../core/widgets/hero_banner.dart';
 import '../core/widgets/loading_widget.dart';
 import '../core/widgets/popular_service_card.dart';
@@ -237,39 +238,57 @@ class _HomeTab extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(
-                              Icons.person_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
                           Expanded(
-                            child: FutureBuilder<AppUser?>(
-                              future: AuthService.instance.currentUser(),
+                            child: StreamBuilder<AppUser?>(
+                              stream: AuthService.instance.currentUserStream,
                               builder: (context, snapshot) {
-                                final name = snapshot.data?.name ?? 'there';
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                final user = snapshot.data;
+                                final name = user?.name ?? 'there';
+                                return Row(
                                   children: [
-                                    Text(
-                                      'Hi $name! 👋',
-                                      style: AppTextStyles.headlineSmall
-                                          .copyWith(color: Colors.white),
-                                    ),
-                                    Text(
-                                      'What needs fixing today?',
-                                      style: AppTextStyles.bodySmall.copyWith(
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
                                         color: Colors.white.withValues(
-                                          alpha: 0.7,
+                                          alpha: 0.2,
                                         ),
+                                        borderRadius: BorderRadius.circular(
+                                          14,
+                                        ),
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: user?.photoUrl != null
+                                          ? RemoteImage(
+                                              url: user!.photoUrl!,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : const Icon(
+                                              Icons.person_rounded,
+                                              color: Colors.white,
+                                              size: 22,
+                                            ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Hi $name! 👋',
+                                            style: AppTextStyles.headlineSmall
+                                                .copyWith(color: Colors.white),
+                                          ),
+                                          Text(
+                                            'What needs fixing today?',
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.7),
+                                                ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
@@ -281,7 +300,9 @@ class _HomeTab extends StatelessWidget {
                             label: 'Notifications',
                             button: true,
                             child: IconButton(
-                              onPressed: () {},
+                              onPressed: () => Navigator.of(
+                                context,
+                              ).pushNamed(RouteNames.notifications),
                               icon: Icon(
                                 Icons.notifications_outlined,
                                 color: Colors.white.withValues(alpha: 0.8),
@@ -304,56 +325,43 @@ class _HomeTab extends StatelessWidget {
             opacity: fadeAnimation,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Semantics(
-                label:
-                    'Search for a service, e.g. Plumber, Electrician, AC repair',
-                button: true,
-                child: GestureDetector(
-                  onTap: () =>
-                      Navigator.of(context).pushNamed(RouteNames.createTicket),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppRadii.input),
+                  border: Border.all(color: AppColors.divider),
+                  boxShadow: AppShadows.subtle,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.search_rounded,
+                      color: AppColors.secondary,
+                      size: 22,
                     ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(AppRadii.input),
-                      border: Border.all(color: AppColors.divider),
-                      boxShadow: AppShadows.subtle,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.search_rounded,
-                          color: AppColors.secondary,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Search "Plumber", "Electrician", "AC repair"…',
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.textHint,
-                            ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        textInputAction: TextInputAction.search,
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          hintText: 'Search "Plumber", "Electrician", a name…',
+                          hintStyle: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textHint,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.mic_rounded,
-                            color: AppColors.primary,
-                            size: 18,
-                          ),
-                        ),
-                      ],
+                        style: AppTextStyles.bodyMedium,
+                        onSubmitted: (value) {
+                          if (value.trim().isEmpty) return;
+                          Navigator.of(context).pushNamed(
+                            RouteNames.providerSearchResults,
+                            arguments: value.trim(),
+                          );
+                        },
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),

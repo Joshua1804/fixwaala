@@ -40,6 +40,9 @@ dependencies:
   # Utilities
   image_picker: ^1.1.0
 
+  # Analytics charts
+  fl_chart: ^0.69.0
+
   # Masked-call handoff between matched parties
   url_launcher: ^6.3.0
 
