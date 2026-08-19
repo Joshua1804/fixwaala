@@ -67,7 +67,12 @@ class ProviderProfile {
     final baseLoc = map['baseLocation'];
     return ProviderProfile(
       skills: (map['skills'] as List<dynamic>? ?? [])
-          .map((s) => ServiceCategory.values.byName(s as String))
+          .map(
+            (s) => ServiceCategory.values.byNameOrDefault(
+              s as String?,
+              ServiceCategory.unknown,
+            ),
+          )
           .toList(),
       experienceYears: map['experienceYears'] as int?,
       serviceArea: map['serviceArea'] as String?,
@@ -178,13 +183,17 @@ class AppUser {
       id: map['id'] as String,
       email: map['email'] as String? ?? '',
       phone: map['phone'] as String?,
-      role: UserRole.values.byName(map['role'] as String),
+      role: UserRole.values.byNameOrDefault(
+        map['role'] as String?,
+        UserRole.customer,
+      ),
       name: map['name'] as String?,
       photoUrl: map['photoUrl'] as String?,
       emailVerified: map['emailVerified'] as bool? ?? false,
       onboardingComplete: map['onboardingComplete'] as bool? ?? false,
-      accountStatus: AccountStatus.values.byName(
-        map['accountStatus'] as String? ?? 'active',
+      accountStatus: AccountStatus.values.byNameOrDefault(
+        map['accountStatus'] as String?,
+        AccountStatus.active,
       ),
       isVerified: map['isVerified'] as bool? ?? false,
       customerProfile: map['customerProfile'] != null

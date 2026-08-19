@@ -48,7 +48,12 @@ class ProviderPublicProfile {
       // ever writes one.
       createdAt: _dateFrom(map['createdAt']),
       skills: (map['skills'] as List<dynamic>? ?? [])
-          .map((s) => ServiceCategory.values.byName(s as String))
+          .map(
+            (s) => ServiceCategory.values.byNameOrDefault(
+              s as String?,
+              ServiceCategory.unknown,
+            ),
+          )
           .toList(),
       experienceYears: map['experienceYears'] as int?,
       serviceArea: map['serviceArea'] as String?,

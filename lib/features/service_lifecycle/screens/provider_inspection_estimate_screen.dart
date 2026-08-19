@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_messages.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../models/job_model.dart';
 import '../services/job_service.dart';
@@ -66,7 +67,7 @@ class _ProviderInspectionEstimateScreenState
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = ErrorMessages.friendly(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

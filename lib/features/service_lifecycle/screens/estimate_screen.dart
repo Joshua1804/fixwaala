@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/routes/route_names.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
@@ -126,7 +127,7 @@ class _EstimateScreenState extends State<EstimateScreen> {
             );
           }
           return Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.screenHPad),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

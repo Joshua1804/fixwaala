@@ -7,6 +7,7 @@ import '../../../core/models/enums.dart';
 import '../../../core/routes/route_names.dart';
 import '../../../core/services/firebase_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../../customer_ticket/models/ticket_model.dart';
@@ -198,7 +199,7 @@ class _ProviderReviewScreenState extends State<ProviderReviewScreen> {
                     const SizedBox(height: 12),
                     const Text(
                       'Your exact address is only shared with the provider you confirm.',
-                      style: TextStyle(fontSize: 12),
+                      style: AppTextStyles.caption,
                     ),
                     const SizedBox(height: 16),
                     Expanded(

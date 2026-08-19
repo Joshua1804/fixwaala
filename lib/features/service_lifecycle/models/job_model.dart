@@ -65,7 +65,10 @@ class JobEventLogEntry {
 
   factory JobEventLogEntry.fromMap(Map<String, dynamic> map) =>
       JobEventLogEntry(
-        JobEvent.values.byName(map['event'] as String),
+        JobEvent.values.byNameOrDefault(
+          map['event'] as String?,
+          JobEvent.values.first,
+        ),
         _dateFromAny(map['timestamp']),
       );
 }
@@ -226,10 +229,14 @@ class Job {
     customerName: map['customerName'] as String? ?? '',
     customerPhone: map['customerPhone'] as String?,
     providerPhone: map['providerPhone'] as String?,
-    category: ServiceCategory.values.byName(
-      map['category'] as String? ?? 'unknown',
+    category: ServiceCategory.values.byNameOrDefault(
+      map['category'] as String?,
+      ServiceCategory.unknown,
     ),
-    status: JobStatus.values.byName(map['status'] as String? ?? 'assigned'),
+    status: JobStatus.values.byNameOrDefault(
+      map['status'] as String?,
+      JobStatus.assigned,
+    ),
     estimate: map['estimate'] != null
         ? RepairEstimate.fromMap(Map<String, dynamic>.from(map['estimate']))
         : null,

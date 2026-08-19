@@ -108,7 +108,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                   begin: Alignment(-(0.5 - t * 0.5), -1),
                   end: Alignment(0.5 + t * 0.5, 1),
                   colors: const [
-                    Color(0xFF042E24),
+                    AppColors.scaffoldDark,
                     AppColors.primaryDark,
                     AppColors.primary,
                   ],

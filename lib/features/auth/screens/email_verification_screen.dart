@@ -6,6 +6,7 @@ import '../../../core/models/user_model.dart';
 import '../../../core/routes/route_names.dart';
 import '../../../core/services/firebase_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../services/auth_service.dart';
@@ -141,7 +142,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.screenHPad),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -167,10 +168,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'You cannot access Fixwaala until your email is verified.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textHint, fontSize: 13),
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textHint,
+              ),
             ),
             if (_info != null) ...[
               const SizedBox(height: 16),

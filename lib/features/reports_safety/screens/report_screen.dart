@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../../auth/services/auth_service.dart';
@@ -100,7 +101,7 @@ class _ReportScreenState extends State<ReportScreen> {
           }
           final me = snapshot.data;
           return Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.screenHPad),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

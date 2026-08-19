@@ -49,8 +49,11 @@ class ProviderSearchService {
     if (query.trim().isEmpty) return const [];
     if (!_live) return const [];
 
+    // Bounded so this in-memory scan can't turn into an unbounded document
+    // read as the provider directory grows; a real fix is server-side search.
     final snap = await FirebaseService.instance.firestore
         .collection('providerPublicProfiles')
+        .limit(1000)
         .get();
     final all = snap.docs
         .map((d) => ProviderPublicProfile.fromMap(d.data()))

@@ -89,8 +89,9 @@ class CandidateLease {
       ticketId: map['ticketId'] as String? ?? '',
       providerId: map['providerId'] as String? ?? '',
       displayName: map['displayName'] as String? ?? '',
-      category: ServiceCategory.values.byName(
-        map['category'] as String? ?? 'unknown',
+      category: ServiceCategory.values.byNameOrDefault(
+        map['category'] as String?,
+        ServiceCategory.unknown,
       ),
       distanceKm: (map['distanceKm'] as num?)?.toDouble() ?? 0,
       etaMinutes: (map['etaMinutes'] as num?)?.toInt() ?? 0,
@@ -98,8 +99,9 @@ class CandidateLease {
       completedJobs: (map['completedJobs'] as num?)?.toInt() ?? 0,
       verified: map['verified'] as bool? ?? false,
       phone: map['phone'] as String?,
-      status: CandidateStatus.values.byName(
-        map['status'] as String? ?? 'pending',
+      status: CandidateStatus.values.byNameOrDefault(
+        map['status'] as String?,
+        CandidateStatus.pending,
       ),
       leasedAt: leasedAt is fs.Timestamp ? leasedAt.toDate() : DateTime.now(),
       expiresAt: expiresAt is fs.Timestamp

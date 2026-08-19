@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/routes/route_names.dart';
+import '../../../core/widgets/async_state_builder.dart';
 import '../../../core/widgets/empty_state_widget.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../../../core/widgets/service_category_ui.dart';
@@ -82,29 +83,27 @@ class _TicketListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Ticket>>(
+    return AsyncStateBuilder.stream<List<Ticket>>(
       stream: TicketService.instance.watchMyTickets(customerId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const LoadingWidget();
-        }
-
-        final all = snapshot.data ?? [];
+      isEmpty: (all) {
+        final filtered = showActive
+            ? all.where((t) => t.isActive)
+            : all.where((t) => !t.isActive);
+        return filtered.isEmpty;
+      },
+      empty: EmptyStateWidget(
+        icon: showActive
+            ? Icons.check_circle_outline_rounded
+            : Icons.history_rounded,
+        title: showActive ? 'No active requests' : 'No past requests',
+        subtitle: showActive
+            ? 'New service requests will appear here'
+            : 'Completed and cancelled requests will appear here',
+      ),
+      data: (context, all) {
         final filtered = showActive
             ? all.where((t) => t.isActive).toList()
             : all.where((t) => !t.isActive).toList();
-
-        if (filtered.isEmpty) {
-          return EmptyStateWidget(
-            icon: showActive
-                ? Icons.check_circle_outline_rounded
-                : Icons.history_rounded,
-            title: showActive ? 'No active requests' : 'No past requests',
-            subtitle: showActive
-                ? 'New service requests will appear here'
-                : 'Completed and cancelled requests will appear here',
-          );
-        }
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),

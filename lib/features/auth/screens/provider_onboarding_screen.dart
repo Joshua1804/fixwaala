@@ -71,7 +71,7 @@ class _ProviderOnboardingScreenState extends State<ProviderOnboardingScreen> {
         context,
       ).pushNamedAndRemoveUntil(RouteNames.providerHome, (route) => false);
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = AuthService.friendlyMessage(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

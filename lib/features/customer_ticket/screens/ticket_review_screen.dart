@@ -5,6 +5,7 @@ import '../../../core/models/enums.dart';
 import '../../../core/routes/route_names.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../ai_assist/models/clarifying_qa.dart';
 import '../../auth/services/auth_service.dart';
@@ -237,7 +238,7 @@ class _TicketReviewScreenState extends State<TicketReviewScreen> {
             const Spacer(),
             const Text(
               'Your exact address stays private until you confirm a provider.',
-              style: TextStyle(fontSize: 12),
+              style: AppTextStyles.caption,
             ),
             const SizedBox(height: 12),
             if (_error != null) ...[

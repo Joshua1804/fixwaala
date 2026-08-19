@@ -73,3 +73,17 @@ enum AccountStatus { active, restricted, suspended }
 
 /// Lifecycle of a single provider's candidacy on a ticket (Module 5/6).
 enum CandidateStatus { pending, selected, notSelected, rejected, expired }
+
+/// Firestore can hand back an enum string a build doesn't recognise — a
+/// renamed case, a hand-edited document, a partially-migrated field.
+/// `.byName` throws on any mismatch and takes the whole document read down
+/// with it; this falls back to a caller-supplied default instead.
+extension EnumByNameSafe<T extends Enum> on List<T> {
+  T byNameOrDefault(String? name, T fallback) {
+    if (name == null) return fallback;
+    for (final value in this) {
+      if (value.name == name) return value;
+    }
+    return fallback;
+  }
+}

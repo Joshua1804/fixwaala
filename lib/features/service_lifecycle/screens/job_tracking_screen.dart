@@ -87,16 +87,25 @@ bool _canContact(JobStatus status) =>
     status == JobStatus.workInProgress ||
     status == JobStatus.completionRequested;
 
-class _JobTrackingBody extends StatelessWidget {
+class _JobTrackingBody extends StatefulWidget {
   final String jobId;
   const _JobTrackingBody({required this.jobId});
+
+  @override
+  State<_JobTrackingBody> createState() => _JobTrackingBodyState();
+}
+
+class _JobTrackingBodyState extends State<_JobTrackingBody> {
+  late final Stream<Job> _jobStream = JobService.instance.watchJob(
+    widget.jobId,
+  );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Job status')),
       body: StreamBuilder<Job>(
-        stream: JobService.instance.watchJob(jobId),
+        stream: _jobStream,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const LoadingWidget(label: 'Loading job status...');
