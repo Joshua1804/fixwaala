@@ -17,11 +17,14 @@ const { getMessaging } = require("firebase-admin/messaging");
 
 const db = () => getFirestore();
 
-/** Every registered device token for a user. */
+/** Every registered device token for a user, capped so a user who has
+ * reinstalled the app many times without cleanup can't turn one notification
+ * into an unbounded read. */
 async function tokensFor(userId) {
   const snap = await db()
     .collection("deviceTokens")
     .where("userId", "==", userId)
+    .limit(20)
     .get();
   return snap.docs.map((d) => d.get("token")).filter(Boolean);
 }
@@ -68,21 +71,28 @@ exports.onOpenTicketCreated = onDocumentCreated(
     const ticket = event.data?.data();
     if (!ticket || ticket.status !== "matching") return;
 
-    await getMessaging().send({
-      topic: "role_provider",
-      notification: {
-        title: "New job nearby",
-        body: ticket.description
-          ? String(ticket.description).slice(0, 120)
-          : "A new request is available in your area.",
-      },
-      data: {
-        type: "openTicket",
-        ticketId: event.params.ticketId,
-        category: String(ticket.category ?? ""),
-      },
-      android: { priority: "high" },
-    });
+    try {
+      await getMessaging().send({
+        topic: "role_provider",
+        notification: {
+          title: "New job nearby",
+          body: ticket.description
+            ? String(ticket.description).slice(0, 120)
+            : "A new request is available in your area.",
+        },
+        data: {
+          type: "openTicket",
+          ticketId: event.params.ticketId,
+          category: String(ticket.category ?? ""),
+        },
+        android: { priority: "high" },
+      });
+    } catch (err) {
+      console.error(
+        `onOpenTicketCreated: failed to notify providers for ticket ${event.params.ticketId}:`,
+        err
+      );
+    }
   }
 );
 
@@ -93,21 +103,28 @@ exports.onCandidateCreated = onDocumentCreated(
     const candidate = event.data?.data();
     if (!candidate || candidate.status === "rejected") return;
 
-    const ticket = await db()
-      .collection("tickets")
-      .doc(event.params.ticketId)
-      .get();
-    const customerId = ticket.get("customerId");
-    if (!customerId) return;
+    try {
+      const ticket = await db()
+        .collection("tickets")
+        .doc(event.params.ticketId)
+        .get();
+      const customerId = ticket.get("customerId");
+      if (!customerId) return;
 
-    await notifyUser(
-      customerId,
-      {
-        title: "A provider is available",
-        body: `${candidate.displayName || "A provider"} accepted your request. Review and confirm.`,
-      },
-      { type: "candidate", ticketId: event.params.ticketId }
-    );
+      await notifyUser(
+        customerId,
+        {
+          title: "A provider is available",
+          body: `${candidate.displayName || "A provider"} accepted your request. Review and confirm.`,
+        },
+        { type: "candidate", ticketId: event.params.ticketId }
+      );
+    } catch (err) {
+      console.error(
+        `onCandidateCreated: failed to notify customer for ticket ${event.params.ticketId}:`,
+        err
+      );
+    }
   }
 );
 
@@ -133,19 +150,26 @@ exports.onJobStatusChanged = onDocumentUpdated(
       cancelled: "This job was cancelled.",
     };
 
-    if (customerFacing[after.status] && after.customerId) {
-      await notifyUser(
-        after.customerId,
-        { title: "Job update", body: customerFacing[after.status] },
-        { type: "job", jobId: event.params.jobId }
-      );
-    }
+    try {
+      if (customerFacing[after.status] && after.customerId) {
+        await notifyUser(
+          after.customerId,
+          { title: "Job update", body: customerFacing[after.status] },
+          { type: "job", jobId: event.params.jobId }
+        );
+      }
 
-    if (providerFacing[after.status] && after.providerId) {
-      await notifyUser(
-        after.providerId,
-        { title: "Job update", body: providerFacing[after.status] },
-        { type: "job", jobId: event.params.jobId }
+      if (providerFacing[after.status] && after.providerId) {
+        await notifyUser(
+          after.providerId,
+          { title: "Job update", body: providerFacing[after.status] },
+          { type: "job", jobId: event.params.jobId }
+        );
+      }
+    } catch (err) {
+      console.error(
+        `onJobStatusChanged: failed to notify for job ${event.params.jobId}:`,
+        err
       );
     }
   }

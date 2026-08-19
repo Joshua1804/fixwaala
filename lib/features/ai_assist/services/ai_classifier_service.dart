@@ -59,7 +59,13 @@ class AiClassifierService {
     );
   }
 
-  Future<FaultClassification> classifyWithAi({
+  /// [usedAi] is false whenever [GeminiAiService] returned null for *any*
+  /// reason — not configured, timed out, or a malformed response — and the
+  /// rule-based classifier stood in instead. Checking
+  /// `GeminiAiService.instance.isConfigured` after the fact used to be the
+  /// only signal callers had, which only catches "no key compiled in" and
+  /// stays silent about a configured call that failed at runtime.
+  Future<({FaultClassification result, bool usedAi})> classifyWithAi({
     required String description,
     required List<String> imageUrls,
   }) async {
@@ -69,21 +75,26 @@ class AiClassifierService {
           imageUrls: imageUrls,
         );
     if (aiResult == null) {
-      return classifyByRules(description);
+      return (result: classifyByRules(description), usedAi: false);
     }
-    return FaultClassification(
-      category: aiResult.category,
-      complexity: aiResult.complexity,
-      confidence: aiResult.confidence,
-      safetyFlagged: aiResult.safetyFlag || containsSafetyKeyword(description),
-      clarifyingQuestions: aiResult.questions,
+    return (
+      result: FaultClassification(
+        category: aiResult.category,
+        complexity: aiResult.complexity,
+        confidence: aiResult.confidence,
+        safetyFlagged:
+            aiResult.safetyFlag || containsSafetyKeyword(description),
+        clarifyingQuestions: aiResult.questions,
+      ),
+      usedAi: true,
     );
   }
 
   /// Final structured summary after the customer has answered the
   /// clarifying questions. Falls back to a rule-based summary if Gemini
-  /// is unavailable or fails.
-  Future<ProblemSummary> summarizeWithAi({
+  /// is unavailable or fails; see [classifyWithAi] on why [usedAi] is
+  /// reported explicitly rather than inferred from configuration state.
+  Future<({ProblemSummary result, bool usedAi})> summarizeWithAi({
     required String description,
     required List<ClarifyingQa> qaPairs,
     required ServiceCategory fallbackCategory,
@@ -94,22 +105,29 @@ class AiClassifierService {
       qaPairs: qaPairs,
     );
     if (result == null) {
-      return ProblemSummary(
-        category: fallbackCategory,
-        complexity: fallbackComplexity,
-        confidence: fallbackCategory == ServiceCategory.unknown ? 0.3 : 0.5,
-        safetyFlagged: containsSafetyKeyword(description),
-        summary: description,
-        recommendedEquipment: const [],
+      return (
+        result: ProblemSummary(
+          category: fallbackCategory,
+          complexity: fallbackComplexity,
+          confidence: fallbackCategory == ServiceCategory.unknown ? 0.3 : 0.5,
+          safetyFlagged: containsSafetyKeyword(description),
+          summary: description,
+          recommendedEquipment: const [],
+        ),
+        usedAi: false,
       );
     }
-    return ProblemSummary(
-      category: result.category,
-      complexity: result.complexity,
-      confidence: result.confidence,
-      safetyFlagged: result.safetyFlag || containsSafetyKeyword(description),
-      summary: result.summary,
-      recommendedEquipment: result.recommendedEquipment,
+    return (
+      result: ProblemSummary(
+        category: result.category,
+        complexity: result.complexity,
+        confidence: result.confidence,
+        safetyFlagged:
+            result.safetyFlag || containsSafetyKeyword(description),
+        summary: result.summary,
+        recommendedEquipment: result.recommendedEquipment,
+      ),
+      usedAi: true,
     );
   }
 

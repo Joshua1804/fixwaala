@@ -133,6 +133,12 @@ class Ticket {
   /// thing the product promises not to reveal until a provider is confirmed.
   /// Providers get an approximate location and the problem details, nothing
   /// that identifies or locates the household.
+  ///
+  /// Keep this field set in sync with `expireLeasesForTicket` in
+  /// `functions/scheduled.js`, which rebuilds the same `openTickets/{id}`
+  /// projection server-side after a candidate lease expires. The two are
+  /// maintained independently in two different languages, so a field added
+  /// to one and not the other will silently drift.
   Map<String, dynamic> toBroadcastMap() => {
     'id': id,
     'customerId': customerId,

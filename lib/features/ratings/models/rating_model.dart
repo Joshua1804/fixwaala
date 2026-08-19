@@ -39,7 +39,10 @@ class Rating {
     jobId: map['jobId'] as String,
     fromUserId: map['fromUserId'] as String,
     toUserId: map['toUserId'] as String,
-    direction: RatingDirection.values.byName(map['direction'] as String),
+    direction: RatingDirection.values.byNameOrDefault(
+      map['direction'] as String?,
+      RatingDirection.customerToProvider,
+    ),
     stars: (map['stars'] as num).toInt(),
     review: map['review'] as String?,
     createdAt: map['createdAt'] is fs.Timestamp

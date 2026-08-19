@@ -37,10 +37,33 @@ class CloudinaryService {
   String? get _uploadPreset =>
       _uploadPresetDefine.trim().isEmpty ? null : _uploadPresetDefine.trim();
 
+  /// Extensions Cloudinary's `image/upload` endpoint is actually used for
+  /// here — rejecting anything else client-side avoids burning upload quota
+  /// and bandwidth on a file that was never going to render as a photo.
+  static const _allowedExtensions = {'jpg', 'jpeg', 'png', 'webp', 'heic'};
+
+  /// Generous enough for a phone camera photo, small enough that one upload
+  /// can't eat an outsized share of the unsigned preset's quota.
+  static const _maxBytes = 10 * 1024 * 1024;
+
   Future<String?> uploadImage(File file) async {
     final cloudName = _cloudName;
     final uploadPreset = _uploadPreset;
     if (cloudName == null || uploadPreset == null) return null;
+
+    final extension = file.path.split('.').last.toLowerCase();
+    if (!_allowedExtensions.contains(extension)) {
+      debugPrint('[CloudinaryService] Rejected file type: .$extension');
+      return null;
+    }
+
+    final size = await file.length();
+    if (size > _maxBytes) {
+      debugPrint(
+        '[CloudinaryService] Rejected file over ${_maxBytes ~/ (1024 * 1024)}MB: $size bytes',
+      );
+      return null;
+    }
 
     final uri = Uri.parse(
       'https://api.cloudinary.com/v1_1/$cloudName/image/upload',

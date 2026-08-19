@@ -11,7 +11,6 @@ import '../models/clarifying_qa.dart';
 import '../models/fault_classification.dart';
 import '../models/problem_summary.dart';
 import '../services/ai_classifier_service.dart';
-import '../services/gemini_ai_service.dart';
 
 enum _Step { loadingInitial, questions, loadingFinal, result, failed }
 
@@ -75,24 +74,24 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
       _error = null;
     });
     try {
-      final result = await AiClassifierService.instance.classifyWithAi(
+      final classified = await AiClassifierService.instance.classifyWithAi(
         description: _description,
         imageUrls: _images,
       );
       if (!mounted) return;
       setState(() {
-        _initial = result;
-        _usedFallback = !GeminiAiService.instance.isConfigured;
+        _initial = classified.result;
+        _usedFallback = !classified.usedAi;
         _answerControllers
           ..clear()
           ..addAll(
             List.generate(
-              result.clarifyingQuestions.length,
+              classified.result.clarifyingQuestions.length,
               (_) => TextEditingController(),
             ),
           );
         _questionIndex = 0;
-        _step = result.clarifyingQuestions.isEmpty
+        _step = classified.result.clarifyingQuestions.isEmpty
             ? _Step.loadingFinal
             : _Step.questions;
       });
@@ -117,7 +116,7 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
           answer: _answerControllers[i].text.trim(),
         ),
       );
-      final result = await AiClassifierService.instance.summarizeWithAi(
+      final summarized = await AiClassifierService.instance.summarizeWithAi(
         description: _description,
         qaPairs: qaPairs,
         fallbackCategory: _initial?.category ?? ServiceCategory.unknown,
@@ -125,7 +124,11 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _final = result;
+        _final = summarized.result;
+        // Either step falling back to the rule engine is worth surfacing —
+        // a customer who got real AI questions but a rule-based summary
+        // still deserves to know the final read is the lower-confidence one.
+        _usedFallback = _usedFallback || !summarized.usedAi;
         _step = _Step.result;
       });
     } catch (error) {
@@ -290,6 +293,10 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_usedFallback) ...[
+            const _AiUnavailableBanner(),
+            const SizedBox(height: 12),
+          ],
           if (_final?.safetyFlagged ?? false)
             Card(
               color: AppColors.error.withValues(alpha: 0.08),

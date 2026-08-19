@@ -273,16 +273,20 @@ class _ProviderHomeTab extends StatelessWidget {
                         ).pushNamed(RouteNames.providerEarnings),
                         child: Row(
                           children: [
-                            _EarningsChip(
-                              label: 'This month',
-                              amount:
-                                  '₹${analytics.earningsThisMonth.toStringAsFixed(0)}',
+                            Expanded(
+                              child: _EarningsChip(
+                                label: 'This month',
+                                amount:
+                                    '₹${analytics.earningsThisMonth.toStringAsFixed(0)}',
+                              ),
                             ),
                             const SizedBox(width: 12),
-                            _EarningsChip(
-                              label: 'All time',
-                              amount:
-                                  '₹${analytics.earningsTotal.toStringAsFixed(0)}',
+                            Expanded(
+                              child: _EarningsChip(
+                                label: 'All time',
+                                amount:
+                                    '₹${analytics.earningsTotal.toStringAsFixed(0)}',
+                              ),
                             ),
                           ],
                         ),
@@ -531,6 +535,8 @@ class _EarningsChip extends StatelessWidget {
           ),
           Text(
             amount,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: AppTextStyles.titleLarge.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w700,

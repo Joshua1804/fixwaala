@@ -71,14 +71,18 @@ class PaymentRecord {
     providerId: map['providerId'] as String? ?? '',
     amount: (map['amount'] as num).toDouble(),
     method: map['method'] as String? ?? '',
-    status: PaymentStatus.values.byName(map['status'] as String? ?? 'pending'),
+    status: PaymentStatus.values.byNameOrDefault(
+      map['status'] as String?,
+      PaymentStatus.pending,
+    ),
     failureReason: map['failureReason'] as String?,
     processedAt: map['processedAt'] is fs.Timestamp
         ? (map['processedAt'] as fs.Timestamp).toDate()
         : DateTime.tryParse(map['processedAt']?.toString() ?? '') ??
               DateTime.now(),
-    disputeStatus: PaymentDisputeStatus.values.byName(
-      map['disputeStatus'] as String? ?? 'none',
+    disputeStatus: PaymentDisputeStatus.values.byNameOrDefault(
+      map['disputeStatus'] as String?,
+      PaymentDisputeStatus.none,
     ),
     disputeNote: map['disputeNote'] as String?,
     disputeUpdatedAt: map['disputeUpdatedAt'] is fs.Timestamp

@@ -50,15 +50,6 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/tickets/$(ticketId)).data;
     }
 
-    // Whether the caller has an accepted-or-declined lease on this ticket —
-    // i.e. they are a legitimate candidate, not merely someone who has seen
-    // the broadcast. Written before `openCandidateWindow` is ever called, so
-    // this is already true by the time that update lands.
-    function isCandidate(ticketId) {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/tickets/$(ticketId)/candidates/$(request.auth.uid));
-    }
-
     // A party to the job document being written or read.
     function isJobParty(data) {
       return isSignedIn() &&
@@ -140,7 +131,6 @@ service cloud.firestore {
         (request.auth.uid == existing().assignedProviderId &&
          unchanged('customerId') &&
          unchanged('assignedProviderId')) ||
-<<<<<<< HEAD
         // TicketService.openCandidateWindow: the provider accepting a
         // ticket's *first* candidate flips it matching ->
         // awaitingCustomerConfirmation and starts the shared countdown —
@@ -148,24 +138,18 @@ service cloud.firestore {
         // the customer nor (yet) the assigned provider. Scoped tightly:
         // only that one transition, only the three fields it touches, and
         // only for a provider who has actually just leased a candidate
-        // slot on this ticket (not an arbitrary signed-in account).
+        // slot on this ticket (not an arbitrary signed-in account). This is
+        // deliberately an allowlist (exact transition + exact fields) rather
+        // than a blocklist of fields that must stay unchanged — a blocklist
+        // version of this clause used to also accept any *declined*
+        // candidate at any ticket status, which let a provider who had
+        // already declined a ticket rewrite its status from outside the
+        // matching phase.
         (existing().status == 'matching' &&
          incoming().status == 'awaitingCustomerConfirmation' &&
          incoming().diff(existing()).affectedKeys()
            .hasOnly(['status', 'candidateWindowExpiresAt', 'updatedAt']) &&
          exists(/databases/$(database)/documents/tickets/$(ticketId)/candidates/$(request.auth.uid))) ||
-=======
-        // A candidate opens the customer's review window when their
-        // acceptance is the ticket's first — before they are the assigned
-        // provider, so the clause above doesn't cover them yet. Limited to
-        // exactly that transition: ownership and location cannot move.
-        (isCandidate(ticketId) &&
-         unchanged('customerId') &&
-         unchanged('assignedProviderId') &&
-         unchanged('exactLocation') &&
-         unchanged('addressLine') &&
-         unchanged('customerName')) ||
->>>>>>> 7c3ca34f2a4476ef41b965b4e90fa96dfe68fe9c
         isAdmin()
       );
 
