@@ -393,6 +393,36 @@ class AuthService {
     await fUser.verifyBeforeUpdateEmail(trimmedEmail);
   }
 
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final current = _currentUser;
+    if (current == null) {
+      throw AuthException('no-current-user', 'You must be signed in.');
+    }
+
+    if (!_live) {
+      if (_passwords[current.id] != currentPassword) {
+        throw AuthException('wrong-password', 'Incorrect password.');
+      }
+      _passwords[current.id] = newPassword;
+      return;
+    }
+
+    final auth = FirebaseService.instance.auth;
+    final fUser = auth.currentUser;
+    if (fUser == null) {
+      throw AuthException('no-current-user', 'You must be signed in.');
+    }
+    final credential = fb_auth.EmailAuthProvider.credential(
+      email: current.email,
+      password: currentPassword,
+    );
+    await fUser.reauthenticateWithCredential(credential);
+    await fUser.updatePassword(newPassword);
+  }
+
   // ── Provider presence ────────────────────────────────────────────
 
   /// Overwrites the current (provider) user's `providerProfile` — used by

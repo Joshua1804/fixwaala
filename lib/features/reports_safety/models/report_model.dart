@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 
 import '../../../core/models/enums.dart';
+import '../../../core/models/user_model.dart' show GeoPoint;
 
 class Report {
   final String id;
@@ -116,6 +117,12 @@ class SafetyAlert {
   final DateTime raisedAt;
   final DateTime? resolvedAt;
 
+  /// Device GPS at the moment the alert was raised, best-effort — see
+  /// `SosScreen._raise`. Null when location services were unavailable,
+  /// permission was denied, or a fix didn't resolve within the timeout;
+  /// never blocks the alert itself from being sent.
+  final GeoPoint? raisedLocation;
+
   const SafetyAlert({
     required this.id,
     required this.userId,
@@ -125,6 +132,7 @@ class SafetyAlert {
     this.resolved = false,
     this.resolvedByAdminId,
     this.resolvedAt,
+    this.raisedLocation,
   });
 
   Map<String, dynamic> toMap() => {
@@ -136,18 +144,31 @@ class SafetyAlert {
     if (resolvedByAdminId != null) 'resolvedByAdminId': resolvedByAdminId,
     'raisedAt': fs.Timestamp.fromDate(raisedAt),
     if (resolvedAt != null) 'resolvedAt': fs.Timestamp.fromDate(resolvedAt!),
+    if (raisedLocation != null)
+      'raisedLocation': fs.GeoPoint(
+        raisedLocation!.latitude,
+        raisedLocation!.longitude,
+      ),
   };
 
-  factory SafetyAlert.fromMap(Map<String, dynamic> map) => SafetyAlert(
-    id: map['id'] as String? ?? '',
-    userId: map['userId'] as String? ?? '',
-    ticketId: map['ticketId'] as String?,
-    jobId: map['jobId'] as String?,
-    resolved: map['resolved'] as bool? ?? false,
-    resolvedByAdminId: map['resolvedByAdminId'] as String?,
-    raisedAt: _dateFrom(map['raisedAt']),
-    resolvedAt: map['resolvedAt'] == null ? null : _dateFrom(map['resolvedAt']),
-  );
+  factory SafetyAlert.fromMap(Map<String, dynamic> map) {
+    final raisedLocation = map['raisedLocation'];
+    return SafetyAlert(
+      id: map['id'] as String? ?? '',
+      userId: map['userId'] as String? ?? '',
+      ticketId: map['ticketId'] as String?,
+      jobId: map['jobId'] as String?,
+      resolved: map['resolved'] as bool? ?? false,
+      resolvedByAdminId: map['resolvedByAdminId'] as String?,
+      raisedAt: _dateFrom(map['raisedAt']),
+      resolvedAt: map['resolvedAt'] == null
+          ? null
+          : _dateFrom(map['resolvedAt']),
+      raisedLocation: raisedLocation is fs.GeoPoint
+          ? GeoPoint(raisedLocation.latitude, raisedLocation.longitude)
+          : null,
+    );
+  }
 
   SafetyAlert copyWith({
     bool? resolved,
@@ -160,6 +181,7 @@ class SafetyAlert {
       ticketId: ticketId,
       jobId: jobId,
       raisedAt: raisedAt,
+      raisedLocation: raisedLocation,
       resolved: resolved ?? this.resolved,
       resolvedByAdminId: resolvedByAdminId ?? this.resolvedByAdminId,
       resolvedAt: resolvedAt ?? this.resolvedAt,

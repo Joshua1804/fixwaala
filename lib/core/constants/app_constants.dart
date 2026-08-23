@@ -53,11 +53,11 @@ class AppConstants {
     'SCHEDULED_FUNCTIONS_DEPLOYED',
   );
 
-  // Demo provider identity shared between Trust-Gated Matching's stubbed
-  // candidate card (Module 6, not yet wired to real candidate data) and the
-  // Service Job Lifecycle provider screens (Module 7), so a single-device
-  // walkthrough can be demonstrated end-to-end. Replace with the real
-  // provider's id/name once Module 6 threads a ProviderCandidate through.
+  // Transient fallback used only in the brief window before
+  // AuthService.instance.currentUser() resolves inside a provider dashboard
+  // screen's FutureBuilder — the widget rebuilds with the real signed-in
+  // provider's id/name once the future completes. Trust-Gated Matching
+  // itself uses real candidate data (see CandidateLease), not this.
   static const String demoProviderId = 'demo-provider-001';
   static const String demoProviderName = 'Rajesh Kumar';
 }

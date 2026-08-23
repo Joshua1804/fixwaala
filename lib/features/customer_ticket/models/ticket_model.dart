@@ -132,7 +132,11 @@ class Ticket {
   /// document carries the customer's precise home coordinates — the exact
   /// thing the product promises not to reveal until a provider is confirmed.
   /// Providers get an approximate location and the problem details, nothing
-  /// that identifies or locates the household.
+  /// that identifies or locates the household — [approximateLocation] itself
+  /// is the customer's exact GPS fix (see [Ticket.fromMap]), so it's rounded
+  /// to ~100m here before broadcast; the precise value stays on the private
+  /// `tickets/{id}` document for [exactLocation] to be copied from once a
+  /// provider is confirmed.
   ///
   /// Keep this field set in sync with `expireLeasesForTicket` in
   /// `functions/scheduled.js`, which rebuilds the same `openTickets/{id}`
@@ -152,8 +156,8 @@ class Ticket {
     'category': category.name,
     'complexity': complexity.name,
     'approximateLocation': fs.GeoPoint(
-      approximateLocation.latitude,
-      approximateLocation.longitude,
+      _roundForPrivacy(approximateLocation.latitude),
+      _roundForPrivacy(approximateLocation.longitude),
     ),
     'status': status.name,
     'createdAt': fs.Timestamp.fromDate(createdAt),
@@ -227,3 +231,11 @@ class Ticket {
     );
   }
 }
+
+/// Rounds a coordinate to 3 decimal places (~100m of latitude) — deterministic
+/// and trivially reproducible in `functions/scheduled.js`, unlike random
+/// jitter, which would need the two languages' PRNGs to agree. Coarse enough
+/// to not identify a specific household, fine enough to not meaningfully
+/// affect km-scale broadcast-radius matching.
+double _roundForPrivacy(double value) =>
+    double.parse(value.toStringAsFixed(3));

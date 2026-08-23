@@ -15,7 +15,7 @@
  */
 
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getFirestore, FieldValue, GeoPoint } = require("firebase-admin/firestore");
 
 // Must match AppConstants in the Flutter app.
 const SEARCH_RADII_KM = [2, 5, 10, 15];
@@ -89,6 +89,17 @@ exports.expandBroadcastRadius = onSchedule("every 1 minutes", async () => {
 });
 
 /**
+ * Rounds a coordinate to 3 decimal places (~100m of latitude). Mirrors
+ * `_roundForPrivacy` in `lib/features/customer_ticket/models/ticket_model.dart`
+ * exactly (deterministic rounding, not random jitter, so the two languages
+ * can't drift out of agreement) — keeps the "approximate location" shown to
+ * unassigned providers from actually being the customer's exact GPS fix.
+ */
+function roundForPrivacy(value) {
+  return Math.round(value * 1000) / 1000;
+}
+
+/**
  * Expires candidate leases whose review window has passed and returns the
  * ticket to matching so broadcasting resumes.
  */
@@ -136,7 +147,10 @@ async function expireLeasesForTicket(doc) {
         imageUrls: ticket.imageUrls ?? [],
         category: ticket.category,
         complexity: ticket.complexity,
-        approximateLocation: ticket.approximateLocation,
+        approximateLocation: new GeoPoint(
+          roundForPrivacy(ticket.approximateLocation.latitude),
+          roundForPrivacy(ticket.approximateLocation.longitude)
+        ),
         status: "matching",
         createdAt: ticket.createdAt,
         updatedAt: FieldValue.serverTimestamp(),

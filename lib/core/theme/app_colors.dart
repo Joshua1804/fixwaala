@@ -97,11 +97,6 @@ class AppColors {
   static const Color chipPremiumBg = Color(0xFF0F2515);
   static const Color chipPremiumFg = Colors.white;
 
-  // ── Offer cards ─────────────────────────────────────────────────────
-  static const Color offerCardBg = Color(0xFF5D7A5D);
-  static const Color offerCardFg = Colors.white;
-  static const Color offerBadgeBg = Color(0xFFC8A96A);
-
   // ── Category-specific colors ────────────────────────────────────────
   // Retained for screens (e.g. provider skill-selection chips) that need
   // per-category visual distinction; the customer-facing category grid

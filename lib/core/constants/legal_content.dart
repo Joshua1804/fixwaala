@@ -3,7 +3,7 @@
 /// **These are drafts written to match what the app actually does — they are
 /// not legal advice and have not been reviewed by a lawyer.** Have counsel
 /// review both the Privacy Policy and the Terms before publishing to the Play
-/// Store, and fill in the placeholders marked `[…]`.
+/// Store.
 ///
 /// They are deliberately accurate about current behaviour rather than
 /// aspirational: the app really does collect precise location, really does
@@ -29,9 +29,8 @@ class StaticDocument {
   });
 }
 
-/// Replace before publishing.
-const _companyName = '[Company legal name]';
-const _contactEmail = '[support@yourdomain.com]';
+const _companyName = 'Fixwaala';
+const _contactEmail = 'support@fixwaala.com';
 
 class LegalContent {
   LegalContent._();

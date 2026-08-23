@@ -7,8 +7,8 @@ enum AnnouncementPriority { info, warning, critical }
 enum AnnouncementAudience { all, customer, provider }
 
 /// Read-only client mirror of the admin-authored banner stored at
-/// `announcements/{id}`. The admin website (`lib/admin/features/content/`)
-/// owns writes; this app only ever reads.
+/// `announcements/{id}`. The admin website (`admin-web/`) owns writes; this
+/// app only ever reads.
 class Announcement {
   final String id;
   final String title;

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../widgets/missing_route_argument_screen.dart';
 import '../../features/ai_assist/screens/ai_assist_screen.dart';
 import '../../features/auth/screens/change_email_screen.dart';
+import '../../features/auth/screens/change_password_screen.dart';
 import '../../features/auth/screens/customer_onboarding_screen.dart';
 import '../../features/auth/screens/email_auth_screen.dart';
 import '../../features/auth/screens/email_verification_screen.dart';
@@ -169,6 +170,9 @@ class AppRouter {
 
       case RouteNames.changeEmail:
         return _page(const ChangeEmailScreen(), settings);
+
+      case RouteNames.changePassword:
+        return _page(const ChangePasswordScreen(), settings);
 
       default:
         return _page(
