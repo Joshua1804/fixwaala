@@ -496,12 +496,6 @@ class JobService {
     _commit(job.copyWith(hasOpenReport: true));
   }
 
-  Future<void> clearReportFlag(String jobId) async {
-    final job = _jobs[jobId];
-    if (job == null) return;
-    _commit(job.copyWith(hasOpenReport: false));
-  }
-
   Future<void> flagSafetyAlert(String jobId) async {
     final job = _jobs[jobId];
     if (job == null) return;

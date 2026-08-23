@@ -478,17 +478,6 @@ class _HomeTab extends StatelessWidget {
           ),
         ),
 
-        // ── Section: Offers ────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: FadeTransition(
-            opacity: fadeAnimation,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
-              child: const SectionHeader(title: 'Offers for you'),
-            ),
-          ),
-        ),
-
         // ── Active ticket preview ──────────────────────────────
         SliverToBoxAdapter(
           child: FadeTransition(

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show CollectionReference;
 
 import '../../../core/models/enums.dart';
+import '../../../core/models/user_model.dart' show GeoPoint;
 import '../../../core/services/firebase_service.dart';
 import '../../service_lifecycle/services/job_service.dart';
 import '../models/report_model.dart';
@@ -92,6 +93,7 @@ class ReportService {
     required String userId,
     String? ticketId,
     String? jobId,
+    GeoPoint? raisedLocation,
   }) async {
     final alert = SafetyAlert(
       id: 'alert-${DateTime.now().microsecondsSinceEpoch}',
@@ -99,6 +101,7 @@ class ReportService {
       ticketId: ticketId,
       jobId: jobId,
       raisedAt: DateTime.now(),
+      raisedLocation: raisedLocation,
     );
     _safetyAlerts.add(alert);
 
@@ -139,46 +142,4 @@ class ReportService {
   List<SafetyAlert> unresolvedSafetyAlerts() =>
       allSafetyAlerts().where((a) => !a.resolved).toList();
 
-  Future<void> updateReportStatus(
-    String reportId,
-    ReportStatus status, {
-    String? adminId,
-    String? note,
-  }) async {
-    final index = _reports.indexWhere((r) => r.id == reportId);
-    if (index == -1) {
-      throw ArgumentError('Report not found.');
-    }
-    final current = _reports[index];
-    _reports[index] = current.copyWith(
-      status: status,
-      adminNote: note ?? current.adminNote,
-      resolvedByAdminId:
-          (status == ReportStatus.resolved || status == ReportStatus.rejected)
-          ? adminId
-          : current.resolvedByAdminId,
-      updatedAt: DateTime.now(),
-    );
-    if (current.jobId != null &&
-        (status == ReportStatus.resolved || status == ReportStatus.rejected)) {
-      await JobService.instance.clearReportFlag(current.jobId!);
-    }
-    _changes.add(null);
-  }
-
-  Future<void> resolveSafetyAlert(
-    String alertId, {
-    required String adminId,
-  }) async {
-    final index = _safetyAlerts.indexWhere((a) => a.id == alertId);
-    if (index == -1) {
-      throw ArgumentError('Safety alert not found.');
-    }
-    _safetyAlerts[index] = _safetyAlerts[index].copyWith(
-      resolved: true,
-      resolvedByAdminId: adminId,
-      resolvedAt: DateTime.now(),
-    );
-    _changes.add(null);
-  }
 }

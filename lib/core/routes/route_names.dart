@@ -74,4 +74,5 @@ class RouteNames {
   static const providerLocation = '/provider/location';
 
   static const changeEmail = '/auth/change-email';
+  static const changePassword = '/auth/change-password';
 }

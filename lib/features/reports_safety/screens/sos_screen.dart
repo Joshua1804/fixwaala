@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/user_model.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/error_messages.dart';
@@ -39,7 +40,17 @@ class _SosScreenState extends State<SosScreen> {
       _error = null;
     });
     try {
-      await ReportService.instance.raiseSos(userId: me.id, jobId: jobId);
+      // Best-effort: give GPS a few seconds, but never let a slow or
+      // unavailable fix delay the alert reaching the server — an SOS that
+      // doesn't reach the server hasn't happened (see ReportService.raiseSos).
+      final location = await LocationService.instance
+          .getCurrentLocation()
+          .timeout(const Duration(seconds: 4), onTimeout: () => null);
+      await ReportService.instance.raiseSos(
+        userId: me.id,
+        jobId: jobId,
+        raisedLocation: location,
+      );
       if (!mounted) return;
       setState(() {
         _raising = false;

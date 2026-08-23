@@ -116,11 +116,11 @@ class SettingsTab extends StatelessWidget {
               Navigator.of(context).pushNamed(RouteNames.changeEmail),
         ),
         const SizedBox(height: 8),
-        // TODO(phase-8): re-auth + updatePassword flow.
-        const ProfileTile(
+        ProfileTile(
           icon: Icons.lock_outline_rounded,
           label: 'Change Password',
-          onTap: null,
+          onTap: () =>
+              Navigator.of(context).pushNamed(RouteNames.changePassword),
         ),
         if (showLocationSetting) ...[
           const SizedBox(height: 12),
