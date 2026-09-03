@@ -8,6 +8,7 @@ import '../../../core/widgets/async_state_builder.dart';
 import '../../../core/widgets/loading_widget.dart';
 import '../../../core/utils/error_messages.dart';
 import '../models/clarifying_qa.dart';
+import '../models/clarifying_question.dart';
 import '../models/fault_classification.dart';
 import '../models/problem_summary.dart';
 import '../services/ai_classifier_service.dart';
@@ -28,6 +29,7 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
   ServiceCategory? _override;
   int _questionIndex = 0;
   final List<TextEditingController> _answerControllers = [];
+  final Map<int, int?> _selectedRadioIndices = {};
 
   String _description = '';
   List<String> _images = const [];
@@ -112,7 +114,7 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
       final qaPairs = List.generate(
         _initial?.clarifyingQuestions.length ?? 0,
         (i) => ClarifyingQa(
-          question: _initial!.clarifyingQuestions[i],
+          question: _initial!.clarifyingQuestions[i].question,
           answer: _answerControllers[i].text.trim(),
         ),
       );
@@ -168,7 +170,7 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
   List<ClarifyingQa> get _qaPairs => List.generate(
     _initial?.clarifyingQuestions.length ?? 0,
     (i) => ClarifyingQa(
-      question: _initial!.clarifyingQuestions[i],
+      question: _initial!.clarifyingQuestions[i].question,
       answer: _answerControllers[i].text.trim(),
     ),
   );
@@ -221,15 +223,16 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
     final questions = _initial!.clarifyingQuestions;
     final total = questions.length;
     final isLast = _questionIndex == total - 1;
+    final currentQuestion = questions[_questionIndex];
+    final options = currentQuestion.options;
+    final selectedOptionIndex = _selectedRadioIndices[_questionIndex];
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_usedFallback) ...[
-            // The AI silently degrading to an 18-keyword rule engine used to
-            // be invisible — the customer just got generic questions and a
-            // low-confidence category with no idea why.
             const _AiUnavailableBanner(),
             const SizedBox(height: 12),
           ],
@@ -241,21 +244,136 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            questions[_questionIndex],
+            currentQuestion.question,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 16),
-          TextField(
-            key: ValueKey(_questionIndex),
-            controller: _answerControllers[_questionIndex],
-            maxLines: 3,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Your answer',
-              border: OutlineInputBorder(),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (options.isNotEmpty) ...[
+                    Text(
+                      'Suggested answers',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...List.generate(options.length, (optIdx) {
+                      final optionText = options[optIdx];
+                      final isSelected = selectedOptionIndex == optIdx;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedRadioIndices[_questionIndex] = optIdx;
+                              _answerControllers[_questionIndex].text =
+                                  optionText;
+                              _answerControllers[_questionIndex].selection =
+                                  TextSelection.fromPosition(
+                                TextPosition(offset: optionText.length),
+                              );
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primary.withValues(alpha: 0.1)
+                                  : AppColors.surface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.divider,
+                                width: isSelected ? 1.5 : 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Radio<int>(
+                                  value: optIdx,
+                                  groupValue: selectedOptionIndex,
+                                  activeColor: AppColors.primary,
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() {
+                                        _selectedRadioIndices[_questionIndex] =
+                                            val;
+                                        _answerControllers[_questionIndex]
+                                            .text = optionText;
+                                        _answerControllers[_questionIndex]
+                                                .selection =
+                                            TextSelection.fromPosition(
+                                          TextPosition(
+                                              offset: optionText.length),
+                                        );
+                                      });
+                                    }
+                                  },
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    optionText,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                          color: isSelected
+                                              ? AppColors.primary
+                                              : AppColors.textPrimary,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                  ],
+                  Text(
+                    'Or type your own answer',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    key: ValueKey(_questionIndex),
+                    controller: _answerControllers[_questionIndex],
+                    maxLines: 3,
+                    autofocus: options.isEmpty,
+                    onChanged: (text) {
+                      if (selectedOptionIndex != null) {
+                        if (text != options[selectedOptionIndex]) {
+                          setState(() {
+                            _selectedRadioIndices[_questionIndex] = null;
+                          });
+                        }
+                      }
+                    },
+                    decoration: const InputDecoration(
+                      hintText: 'Type custom answer here...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: 16),
           Row(
             children: [
               if (_questionIndex > 0)
@@ -275,8 +393,6 @@ class _AiAssistScreenState extends State<AiAssistScreen> {
               ),
             ],
           ),
-          // Questions were mandatory, one per screen, with no way past them.
-          // An answer the customer does not have should not block the request.
           TextButton(
             onPressed: _nextQuestion,
             child: Text(isLast ? 'Not sure — finish' : 'Not sure — skip'),

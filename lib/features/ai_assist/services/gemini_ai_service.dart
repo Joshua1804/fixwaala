@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/models/enums.dart';
 import '../../../core/services/firebase_service.dart';
 import '../models/clarifying_qa.dart';
+import '../models/clarifying_question.dart';
 
 /// Raw result of the first Gemini call: classification + follow-up questions.
 class InitialAiResult {
@@ -15,7 +16,7 @@ class InitialAiResult {
   final ProblemComplexity complexity;
   final double confidence;
   final bool safetyFlag;
-  final List<String> questions;
+  final List<ClarifyingQuestion> questions;
 
   const InitialAiResult({
     required this.category,
@@ -274,8 +275,8 @@ Number of photos attached: ${imageUrls.length}
 
 Categories are limited to: plumber, electrician, carpenter, unknown.
 Complexity is low, medium, or high.
-Generate between 2 and 4 clarifying questions, each answerable in one short
-sentence, specific to this exact problem (not generic).
+Generate between 2 and 4 clarifying questions, each specific to this exact problem (not generic).
+For EACH question, also generate between 2 and 4 short suggested answers/options (e.g., "Yes, leaking continuously", "Only when tap is open", "Dripping slowly") that the user can choose from as radio button options.
 ''';
 
     final schema = {
@@ -287,7 +288,19 @@ sentence, specific to this exact problem (not generic).
         'safetyFlag': {'type': 'boolean'},
         'questions': {
           'type': 'array',
-          'items': {'type': 'string'},
+          'items': {
+            'type': 'object',
+            'properties': {
+              'question': {'type': 'string'},
+              'options': {
+                'type': 'array',
+                'items': {'type': 'string'},
+                'minItems': 2,
+                'maxItems': 4,
+              },
+            },
+            'required': ['question', 'options'],
+          },
           'minItems': 2,
           'maxItems': 4,
         },
@@ -305,12 +318,29 @@ sentence, specific to this exact problem (not generic).
     if (json == null) return null;
 
     try {
+      final rawQuestions = json['questions'];
+      final List<ClarifyingQuestion> parsedQuestions = [];
+
+      if (rawQuestions is List) {
+        for (final item in rawQuestions) {
+          if (item is Map<String, dynamic>) {
+            parsedQuestions.add(ClarifyingQuestion.fromMap(item));
+          } else if (item is Map) {
+            parsedQuestions.add(
+              ClarifyingQuestion.fromMap(Map<String, dynamic>.from(item)),
+            );
+          } else if (item is String) {
+            parsedQuestions.add(ClarifyingQuestion(question: item));
+          }
+        }
+      }
+
       return InitialAiResult(
         category: _parseCategory(json['category']),
         complexity: _parseComplexity(json['complexity']),
         confidence: _parseConfidence(json['confidence']),
         safetyFlag: json['safetyFlag'] as bool? ?? false,
-        questions: List<String>.from(json['questions'] ?? const []),
+        questions: parsedQuestions,
       );
     } catch (e) {
       debugPrint('[GeminiAiService] Failed to parse classification result: $e');

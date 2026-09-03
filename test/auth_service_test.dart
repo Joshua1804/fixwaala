@@ -119,6 +119,27 @@ void main() {
     });
   });
 
+  group('Google Sign-In', () {
+    test('creates a verified, un-onboarded Google user in simulation mode', () async {
+      final user = await AuthService.instance.signInWithGoogle(role: UserRole.customer);
+      expect(user.role, UserRole.customer);
+      expect(user.emailVerified, isTrue);
+      expect(user.onboardingComplete, isFalse);
+      expect(user.email, 'google.user@example.com');
+      expect(user.name, 'Google User');
+      expect(user.photoUrl, isNotNull);
+      expect(user.id, startsWith('sim_google_'));
+    });
+
+    test('reuses existing Google user on subsequent sign-in', () async {
+      final first = await AuthService.instance.signInWithGoogle(role: UserRole.customer);
+      await AuthService.instance.signOut();
+      final second = await AuthService.instance.signInWithGoogle(role: UserRole.customer);
+      expect(second.id, first.id);
+      expect(second.email, first.email);
+    });
+  });
+
   group('Password reset', () {
     test('throws for an unknown email', () {
       expect(

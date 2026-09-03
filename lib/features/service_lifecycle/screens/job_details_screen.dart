@@ -261,7 +261,11 @@ class JobDetailsScreen extends StatelessWidget {
               ],
               Text('Timeline', style: AppTextStyles.titleLarge),
               const SizedBox(height: 12),
-              JobStatusStepper(current: job.status),
+              JobStatusStepper(
+                current: job.status,
+                showPaymentStep: true,
+                paid: job.paid,
+              ),
               const SizedBox(height: 12),
               if (job.status != JobStatus.cancelled &&
                   job.status != JobStatus.completed)
@@ -278,7 +282,7 @@ class JobDetailsScreen extends StatelessWidget {
                 ),
               if (job.status == JobStatus.completed &&
                   job.paid &&
-                  !job.providerRated)
+                  !job.providerRated) ...[
                 PrimaryButton(
                   label: 'Rate customer',
                   icon: Icons.star_rounded,
@@ -292,6 +296,21 @@ class JobDetailsScreen extends StatelessWidget {
                     },
                   ),
                 ),
+                const SizedBox(height: 12),
+              ],
+              if (job.status == JobStatus.completed) ...[
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.home_outlined),
+                  label: const Text('Home Screen'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                  ),
+                  onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil(
+                    RouteNames.providerHome,
+                    (route) => false,
+                  ),
+                ),
+              ],
             ],
           );
         },

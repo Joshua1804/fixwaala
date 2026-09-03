@@ -12,7 +12,20 @@
           "package_name": "com.fixwaala.fixwaala"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "353094117552-1sh0be2sorgoinam1vmrfsbmqdbcpdai.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fixwaala.fixwaala",
+            "certificate_hash": "58d28e028759b0b623ba0780f5ccc222601ee13f"
+          }
+        },
+        {
+          "client_id": "353094117552-1e6icut9h5r0gsmgssjigqdtf70glo81.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDwqEp9k5eiMV6alq4vI9IZZjN7hq09hBA"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "353094117552-1e6icut9h5r0gsmgssjigqdtf70glo81.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

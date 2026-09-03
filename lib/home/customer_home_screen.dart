@@ -758,10 +758,16 @@ class _ActiveJobCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                StatusBadge(
-                  label: JobStatusUi.label(job.status),
-                  color: JobStatusUi.color(job.status),
-                ),
+                // For completed jobs show payment state instead of "Completed"
+                if (job.status == JobStatus.completed)
+                  job.paid
+                      ? StatusBadge.success('Paid', icon: Icons.payments_rounded)
+                      : StatusBadge.warning('Payment Pending')
+                else
+                  StatusBadge(
+                    label: JobStatusUi.label(job.status),
+                    color: JobStatusUi.color(job.status),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -1075,22 +1081,66 @@ class _TicketCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    statusLabel,
-                    style: AppTextStyles.labelSmall.copyWith(
-                      color: statusColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                Builder(
+                  builder: (context) {
+                    // For completed tickets: show Paid / Payment Pending
+                    // as a single pill (mirrors the provider history card).
+                    if (ticket.status == TicketStatus.completed) {
+                      final job = JobService.instance.jobForTicket(ticket.id);
+                      final isPaid = job?.paid ?? false;
+                      final payColor =
+                          isPaid ? AppColors.success : AppColors.warning;
+                      final payLabel = isPaid ? 'Paid' : 'Payment Pending';
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: payColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isPaid
+                                  ? Icons.payments_rounded
+                                  : Icons.hourglass_top_rounded,
+                              size: 12,
+                              color: payColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              payLabel,
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: payColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    // All other statuses: original pill
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

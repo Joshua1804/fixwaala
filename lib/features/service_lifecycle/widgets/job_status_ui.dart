@@ -101,10 +101,28 @@ class JobStatusUi {
 }
 
 /// A compact vertical stepper visualising progress through [JobStatusUi.timelineOrder].
+///
+/// When [showPaymentStep] is `true` (provider-only context) and [current] is
+/// [JobStatus.completed], an extra terminal "Payment" node is appended that
+/// shows either **Payment Received** (green) or **Payment Pending** (amber)
+/// based on the live [paid] flag from the [Job] model.
 class JobStatusStepper extends StatelessWidget {
   final JobStatus current;
 
-  const JobStatusStepper({super.key, required this.current});
+  /// Whether to render the extra payment step after the Completed node.
+  /// Defaults to `false` so the customer-facing timeline is unaffected.
+  final bool showPaymentStep;
+
+  /// The current payment state of the job. Only used when [showPaymentStep]
+  /// is `true` and [current] is [JobStatus.completed].
+  final bool paid;
+
+  const JobStatusStepper({
+    super.key,
+    required this.current,
+    this.showPaymentStep = false,
+    this.paid = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -112,6 +130,7 @@ class JobStatusStepper extends StatelessWidget {
       return _CancelledBanner();
     }
     final currentIndex = JobStatusUi.timelineOrder.indexOf(current);
+    final addPaymentStep = showPaymentStep && current == JobStatus.completed;
     return Column(
       children: [
         for (var i = 0; i < JobStatusUi.timelineOrder.length; i++)
@@ -122,8 +141,10 @@ class JobStatusStepper extends StatelessWidget {
                 : i == currentIndex
                 ? _StepState.current
                 : _StepState.upcoming,
-            isLast: i == JobStatusUi.timelineOrder.length - 1,
+            // Not the last step when the payment step follows.
+            isLast: i == JobStatusUi.timelineOrder.length - 1 && !addPaymentStep,
           ),
+        if (addPaymentStep) _PaymentStepRow(paid: paid),
       ],
     );
   }
@@ -234,6 +255,54 @@ class _CancelledBanner extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Terminal payment step appended after the Completed node in the provider
+/// timeline. Shows a green "Payment Received" node when [paid] is true, or an
+/// amber "Payment Pending" node when the customer hasn't paid yet.
+///
+/// Uses the same 28 px circle + label layout as [_StepRow] so it blends
+/// seamlessly with the rest of the stepper. There is no trailing connector
+/// line because this is always the last step.
+class _PaymentStepRow extends StatelessWidget {
+  final bool paid;
+  const _PaymentStepRow({required this.paid});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = paid ? AppColors.success : AppColors.warning;
+    final icon = paid ? Icons.payments_rounded : Icons.hourglass_top_rounded;
+    final label = paid ? 'Payment Received' : 'Payment Pending';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withValues(alpha: 0.15),
+            border: Border.all(color: color, width: 2),
+          ),
+          child: Icon(icon, size: 15, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

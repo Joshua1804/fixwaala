@@ -127,6 +127,63 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
     }
   }
 
+  Future<void> _submitGoogle(UserRole role) async {
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final user = await AuthService.instance.signInWithGoogle(role: role);
+      if (!mounted) return;
+      final mismatch = roleMismatchMessage(
+        loginPageRole: role,
+        accountRole: user.role,
+      );
+      if (mismatch != null) {
+        final goToCorrectPage = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Wrong sign-in page'),
+            content: Text(
+              '$mismatch Go to the ${_roleLabel(user.role)} sign-in page instead?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Continue anyway'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Take me there'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        if (goToCorrectPage == true) {
+          Navigator.of(context).pushReplacementNamed(
+            RouteNames.emailAuth,
+            arguments: user.role,
+          );
+          return;
+        }
+      }
+      final destination = await AuthService.instance.resolveInitialRoute();
+      if (!mounted) return;
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(destination, (route) => false);
+    } catch (e) {
+      if (e is AuthException && e.code == 'canceled') {
+        // Silently clear loading on user cancellation
+        return;
+      }
+      setState(() => _error = AuthService.friendlyMessage(e));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final role =
@@ -263,6 +320,46 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                   loading: _submitting,
                   useGradient: true,
                   onPressed: _submitting ? null : () => _submit(role),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'OR',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                OutlinedButton(
+                  onPressed: _submitting ? null : () => _submitGoogle(role),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    side: const BorderSide(color: AppColors.divider),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.g_mobiledata_rounded, size: 28),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Sign in with Google',
+                        style: AppTextStyles.buttonText.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Center(

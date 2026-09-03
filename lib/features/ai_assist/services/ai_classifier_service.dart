@@ -1,5 +1,6 @@
 import '../../../core/models/enums.dart';
 import '../models/clarifying_qa.dart';
+import '../models/clarifying_question.dart';
 import '../models/fault_classification.dart';
 import '../models/problem_summary.dart';
 import 'gemini_ai_service.dart';
@@ -131,21 +132,74 @@ class AiClassifierService {
     );
   }
 
-  List<String> guidedQuestions(ServiceCategory category) {
+  List<ClarifyingQuestion> guidedQuestions(ServiceCategory category) {
     return switch (category) {
       ServiceCategory.plumber => const [
-        'Is water actively leaking now?',
-        'Which fixture is affected?',
+        ClarifyingQuestion(
+          question: 'Is water actively leaking now?',
+          options: [
+            'Yes, continuous leak',
+            'No, only when in use',
+            'Dripping slowly',
+          ],
+        ),
+        ClarifyingQuestion(
+          question: 'Which fixture is affected?',
+          options: [
+            'Kitchen sink / tap',
+            'Bathroom shower / tap',
+            'Main supply pipe',
+            'Toilet flush / cistern',
+          ],
+        ),
       ],
       ServiceCategory.electrician => const [
-        'Does the circuit trip repeatedly?',
-        'Any burning smell?',
+        ClarifyingQuestion(
+          question: 'Does the circuit trip repeatedly?',
+          options: [
+            'Yes, immediately on switch ON',
+            'Occasionally under heavy load',
+            'No tripping observed',
+          ],
+        ),
+        ClarifyingQuestion(
+          question: 'Any burning smell or sparks?',
+          options: [
+            'Yes, visible sparks / burning smell',
+            'No sparks or smell',
+            'Not sure',
+          ],
+        ),
       ],
       ServiceCategory.carpenter => const [
-        'Is anything broken beyond alignment?',
-        'Material — wood, MDF, or plywood?',
+        ClarifyingQuestion(
+          question: 'Is anything broken beyond alignment?',
+          options: [
+            'Yes, wood/hinge is broken/cracked',
+            'No, just loose or misaligned',
+            'Needs fresh installation',
+          ],
+        ),
+        ClarifyingQuestion(
+          question: 'Material — wood, MDF, or plywood?',
+          options: [
+            'Solid wood',
+            'MDF / Particle board',
+            'Plywood',
+            'Metal / Glass / Synthetic',
+          ],
+        ),
       ],
-      _ => const ['Can you describe the problem in one line?'],
+      _ => const [
+        ClarifyingQuestion(
+          question: 'Can you describe the problem severity?',
+          options: [
+            'Urgent repair required',
+            'Routine repair / maintenance',
+            'Inspection / consultation only',
+          ],
+        ),
+      ],
     };
   }
 }

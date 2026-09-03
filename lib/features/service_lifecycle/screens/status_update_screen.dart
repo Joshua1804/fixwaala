@@ -114,7 +114,11 @@ class StatusUpdateScreen extends StatelessWidget {
                 const SizedBox(height: 20),
                 Expanded(
                   child: SingleChildScrollView(
-                    child: JobStatusStepper(current: job.status),
+                    child: JobStatusStepper(
+                      current: job.status,
+                      showPaymentStep: true,
+                      paid: job.paid,
+                    ),
                   ),
                 ),
                 _ActionRow(
@@ -211,6 +215,30 @@ class _ActionRow extends StatelessWidget {
           text: 'Waiting for the customer to confirm completion.',
         );
       case JobStatus.completed:
+        return Column(
+          children: [
+            PrimaryButton(
+              label: 'Job Details',
+              icon: Icons.assignment_outlined,
+              onPressed: () => Navigator.of(context).pushNamed(
+                RouteNames.providerJobDetails,
+                arguments: job.jobId,
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.home_outlined),
+              label: const Text('Home Screen'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
+              onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil(
+                RouteNames.providerHome,
+                (route) => false,
+              ),
+            ),
+          ],
+        );
       case JobStatus.cancelled:
         return const SizedBox.shrink();
     }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/models/user_facing_exception.dart';
@@ -180,6 +181,99 @@ class AuthService {
       );
       await docRef.set(user.toMap());
     }
+    _currentUser = user;
+    _cacheStanding(user);
+    return user;
+  }
+
+  // ── Google Sign-In ────────────────────────────────────────────────
+
+  /// Signs in or registers a user using Google Authentication.
+  Future<AppUser> signInWithGoogle({required UserRole role}) async {
+    if (!_live) {
+      final now = DateTime.now();
+      const googleEmail = 'google.user@example.com';
+      final existingMatches = _userDb.values.where((u) => u.email == googleEmail);
+      if (existingMatches.isNotEmpty) {
+        final existing = existingMatches.first;
+        _currentUser = existing;
+        _userChanges.add(existing);
+        return existing;
+      }
+
+      final id = 'sim_google_${now.microsecondsSinceEpoch}';
+      final user = AppUser(
+        id: id,
+        email: googleEmail,
+        name: 'Google User',
+        photoUrl: 'https://lh3.googleusercontent.com/a/default-user',
+        role: role,
+        emailVerified: true,
+        onboardingComplete: false,
+        createdAt: now,
+        updatedAt: now,
+      );
+      _userDb[id] = user;
+      _currentUser = user;
+      _userChanges.add(user);
+      return user;
+    }
+
+    final GoogleSignIn googleSignIn = GoogleSignIn();
+    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      throw AuthException('canceled', 'Google sign-in was canceled.');
+    }
+
+    final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
+    final fb_auth.OAuthCredential credential =
+        fb_auth.GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final userCredential =
+        await FirebaseService.instance.auth.signInWithCredential(credential);
+    final fUser = userCredential.user;
+    if (fUser == null) {
+      throw Exception('Google sign-in failed. Firebase returned a null user.');
+    }
+
+    final docRef = FirebaseService.instance.firestore
+        .collection('users')
+        .doc(fUser.uid);
+    final doc = await docRef.get();
+
+    AppUser user;
+    final now = DateTime.now();
+    if (doc.exists) {
+      user = AppUser.fromMap(doc.data()!).copyWith(
+        emailVerified: true,
+        name: fUser.displayName ?? doc.data()!['name'],
+        photoUrl: fUser.photoURL ?? doc.data()!['photoUrl'],
+      );
+      await docRef.update({
+        'emailVerified': true,
+        if (fUser.displayName != null) 'name': fUser.displayName,
+        if (fUser.photoURL != null) 'photoUrl': fUser.photoURL,
+        'updatedAt': now.toIso8601String(),
+      });
+    } else {
+      user = AppUser(
+        id: fUser.uid,
+        email: fUser.email ?? '',
+        name: fUser.displayName ?? 'Google User',
+        photoUrl: fUser.photoURL,
+        role: role,
+        emailVerified: true,
+        onboardingComplete: false,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await docRef.set(user.toMap());
+    }
+
     _currentUser = user;
     _cacheStanding(user);
     return user;
@@ -619,7 +713,11 @@ class AuthService {
       code = error.code;
       fallback = error.message;
     } else {
-      return error.toString();
+      final errStr = error.toString();
+      if (errStr.contains('ApiException: 10') || errStr.contains('sign_in_failed')) {
+        return 'Google Sign-In configuration error. Please ensure your Android SHA-1 key is added in Firebase Console.';
+      }
+      return errStr;
     }
     switch (code) {
       case 'email-already-in-use':
@@ -641,6 +739,11 @@ class AuthService {
         return 'Network error. Check your connection and try again.';
       case 'requires-recent-login':
         return 'Please sign in again to continue.';
+      case 'canceled':
+      case 'popup-closed-by-user':
+        return 'Google sign-in was canceled.';
+      case 'account-exists-with-different-credential':
+        return 'An account already exists with the same email address but different sign-in credentials.';
       default:
         return fallback ?? 'Something went wrong. Please try again.';
     }

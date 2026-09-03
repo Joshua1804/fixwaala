@@ -310,10 +310,20 @@ class _JobCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  StatusBadge(
-                    label: JobStatusUi.label(job.status),
-                    color: JobStatusUi.color(job.status),
-                  ),
+                  // For completed jobs show a single payment-state badge
+                  // instead of the generic "Completed" label + a second pill.
+                  if (job.status == JobStatus.completed)
+                    job.paid
+                        ? StatusBadge.success(
+                            'Paid',
+                            icon: Icons.payments_rounded,
+                          )
+                        : StatusBadge.warning('Payment Pending')
+                  else
+                    StatusBadge(
+                      label: JobStatusUi.label(job.status),
+                      color: JobStatusUi.color(job.status),
+                    ),
                   if (job.hasSafetyAlert) ...[
                     const SizedBox(height: 4),
                     StatusBadge.error('SOS', icon: Icons.emergency),
